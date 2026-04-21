@@ -10,3 +10,4 @@ path = "src/lib.rs"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = [] }
+mysql = "^26.0.1"
