@@ -1,5 +1,6 @@
 pub mod config;
 pub mod migration;
+pub mod reminder_template_repository;
 
 #[cfg(test)]
 mod tests {
