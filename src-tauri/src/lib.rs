@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod models;
+pub mod scheduler;
 pub mod state;
 
 #[cfg(test)]
