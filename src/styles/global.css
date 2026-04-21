@@ -1,0 +1,171 @@
+:root {
+  color: #1f2a1f;
+  background: #f6f2ea;
+  font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  padding: 24px;
+  background: #e7e0d2;
+  border-right: 1px solid rgba(63, 73, 48, 0.12);
+}
+
+.brand-block {
+  margin-bottom: 24px;
+}
+
+.brand-eyebrow {
+  margin: 0 0 8px;
+  color: #6d684f;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brand-title {
+  margin: 0;
+  color: #243126;
+  font-size: 28px;
+}
+
+.main-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nav-link {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #314432;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.nav-link-active {
+  background: #2f4b31;
+  color: #f8f6f0;
+}
+
+.page-container {
+  padding: 28px;
+}
+
+.page-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 32px;
+  color: #203123;
+}
+
+.page-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.page-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.panel {
+  padding: 20px;
+  border-radius: 18px;
+  background: #fffdf8;
+  border: 1px solid rgba(63, 73, 48, 0.12);
+  box-shadow: 0 12px 40px rgba(57, 54, 40, 0.06);
+}
+
+.panel-hero {
+  background: linear-gradient(135deg, #f5e8d2 0%, #ecf0df 100%);
+}
+
+.panel-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #756b53;
+  font-size: 13px;
+}
+
+.panel-title {
+  display: block;
+  margin-bottom: 6px;
+  color: #243126;
+  font-size: 22px;
+}
+
+.panel-text {
+  margin: 0;
+  color: #4b564c;
+}
+
+.primary-button,
+.secondary-button {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: #2f4b31;
+  color: #f8f6f0;
+}
+
+.secondary-button {
+  background: #ddd6c7;
+  color: #28322a;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid rgba(63, 73, 48, 0.12);
+  }
+
+  .page-grid-two {
+    grid-template-columns: 1fr;
+  }
+}
