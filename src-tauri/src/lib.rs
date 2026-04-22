@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod models;
+pub mod notification;
 pub mod scheduler;
 pub mod state;
 
