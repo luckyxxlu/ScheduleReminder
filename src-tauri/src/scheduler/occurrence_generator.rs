@@ -30,7 +30,9 @@ pub fn generate_occurrences(
             template_id: template.id.clone(),
             scheduled_at: scheduled_at.clone(),
             grace_deadline_at: scheduled_at,
+            snoozed_until: None,
             status: "pending".to_string(),
+            handled_at: None,
         });
     }
 
