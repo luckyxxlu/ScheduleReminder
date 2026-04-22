@@ -3,7 +3,9 @@ pub mod db;
 pub mod models;
 pub mod notification;
 pub mod scheduler;
+pub mod settings;
 pub mod state;
+pub mod tray;
 
 #[cfg(test)]
 mod tests {
