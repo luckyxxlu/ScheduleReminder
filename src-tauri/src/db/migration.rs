@@ -31,6 +31,28 @@ pub fn create_pool(database_url: &str) -> Result<Pool, MigrationError> {
     Pool::new(opts).map_err(|_| MigrationError::MysqlConnectionFailed)
 }
 
+pub fn create_database_if_missing(database_url: &str) -> Result<(), MigrationError> {
+    validate_database_url(database_url).map_err(MigrationError::InvalidConfig)?;
+
+    let (admin_url, database_name) = split_admin_url(database_url)
+        .map_err(MigrationError::InvalidConfig)?;
+
+    let opts = Opts::from_url(&admin_url).map_err(|_| MigrationError::MysqlInitFailed)?;
+    let pool = Pool::new(opts).map_err(|_| MigrationError::MysqlConnectionFailed)?;
+    let mut connection = pool
+        .get_conn()
+        .map_err(|_| MigrationError::MysqlConnectionFailed)?;
+
+    connection
+        .query_drop(format!(
+            "CREATE DATABASE IF NOT EXISTS `{}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+            database_name
+        ))
+        .map_err(|_| MigrationError::StatementExecutionFailed)?;
+
+    Ok(())
+}
+
 pub fn run_migrations(pool: &Pool) -> Result<(), MigrationError> {
     let mut connection = pool
         .get_conn()
@@ -52,9 +74,27 @@ pub fn run_migrations(pool: &Pool) -> Result<(), MigrationError> {
 }
 
 pub fn initialize_mysql(database_url: &str) -> Result<Pool, MigrationError> {
+    create_database_if_missing(database_url)?;
     let pool = create_pool(database_url)?;
     run_migrations(&pool)?;
     Ok(pool)
+}
+
+fn split_admin_url(database_url: &str) -> Result<(String, String), DbConfigError> {
+    validate_database_url(database_url)?;
+
+    let without_scheme = database_url
+        .strip_prefix("mysql://")
+        .ok_or(DbConfigError::UnsupportedScheme)?;
+    let (authority, database_name) = without_scheme
+        .rsplit_once('/')
+        .ok_or(DbConfigError::MissingDatabaseName)?;
+
+    if database_name.is_empty() {
+        return Err(DbConfigError::MissingDatabaseName);
+    }
+
+    Ok((format!("mysql://{authority}/mysql"), database_name.to_string()))
 }
 
 pub fn migration_statements() -> Vec<&'static str> {

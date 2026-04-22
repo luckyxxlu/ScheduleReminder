@@ -36,9 +36,9 @@ mod tests {
             std::env::remove_var("DATABASE_URL");
         }
 
-        let error = database_url_from_env().expect_err("missing DATABASE_URL should fail");
+        let url = database_url_from_env().expect("default DATABASE_URL should be provided");
 
-        assert_eq!(error, DbConfigError::MissingDatabaseUrl);
+        assert_eq!(url, "mysql://root:root@127.0.0.1:3306/schedule_reminder");
     }
 
     #[test]
@@ -53,6 +53,7 @@ mod tests {
             config.database_url,
             "mysql://root:password@127.0.0.1:3306/schedule_reminder"
         );
+        assert_eq!(config.database_name, "schedule_reminder");
 
         unsafe {
             std::env::remove_var("DATABASE_URL");

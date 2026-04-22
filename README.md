@@ -15,7 +15,15 @@
 
 ## 运行方式
 
-先准备 MySQL 连接字符串：
+默认情况下，应用会尝试使用以下 MySQL 连接：
+
+```bash
+mysql://root:root@127.0.0.1:3306/schedule_reminder
+```
+
+应用启动时会自动创建 `schedule_reminder` 数据库。
+
+如果你想手动指定连接字符串：
 
 ```bash
 set DATABASE_URL=mysql://<user>:<password>@127.0.0.1:3306/<database>
