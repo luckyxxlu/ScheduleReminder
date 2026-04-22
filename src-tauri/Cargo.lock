@@ -2949,6 +2949,7 @@ dependencies = [
  "mysql",
  "serde",
  "tauri",
+ "tauri-build",
 ]
 
 [[package]]
