@@ -137,6 +137,80 @@ button {
   color: #4b564c;
 }
 
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.status-block {
+  margin-top: 16px;
+}
+
+.status-chip {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.status-宽容中 {
+  background: #f0dfb7;
+  color: #6f4f00;
+}
+
+.status-已完成 {
+  background: #d8ead8;
+  color: #24552a;
+}
+
+.status-已跳过 {
+  background: #dfdfdf;
+  color: #555;
+}
+
+.template-row,
+.settings-group,
+.date-detail {
+  margin-top: 16px;
+}
+
+.calendar-grid {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.calendar-day {
+  padding: 10px 14px;
+  border: 1px solid rgba(63, 73, 48, 0.12);
+  border-radius: 12px;
+  background: #f8f4ec;
+  cursor: pointer;
+}
+
+.settings-field,
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.settings-field input {
+  width: 120px;
+  padding: 8px 10px;
+}
+
+.settings-fieldset {
+  margin: 0 0 14px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(63, 73, 48, 0.12);
+}
+
 .primary-button,
 .secondary-button {
   padding: 10px 16px;
