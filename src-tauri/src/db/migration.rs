@@ -64,9 +64,9 @@ pub fn run_migrations(pool: &Pool) -> Result<(), MigrationError> {
             .map_err(|_| MigrationError::StatementExecutionFailed)?;
     }
 
-    connection
-        .query_drop(
-            "INSERT INTO app_settings (id, default_grace_minutes, startup_with_windows, tray_enabled, theme, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, updated_at) VALUES (1, 10, 0, 1, 'system', 0, NULL, NULL, NOW(3)) ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)"
+        connection
+            .query_drop(
+                "INSERT INTO app_settings (id, default_grace_minutes, startup_with_windows, tray_enabled, close_to_tray_on_close, theme, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, updated_at) VALUES (1, 10, 0, 1, 1, 'system', 0, NULL, NULL, NOW(3)) ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)"
         )
         .map_err(|_| MigrationError::StatementExecutionFailed)?;
 
@@ -102,6 +102,6 @@ pub fn migration_statements() -> Vec<&'static str> {
         "CREATE TABLE IF NOT EXISTS reminder_templates (id VARCHAR(64) PRIMARY KEY NOT NULL, title VARCHAR(255) NOT NULL, category VARCHAR(64) NULL, event_type VARCHAR(32) NOT NULL, event_payload_json JSON NOT NULL, repeat_rule_json JSON NOT NULL, default_grace_minutes INTEGER NOT NULL, notify_sound TINYINT(1) NOT NULL DEFAULT 1, note TEXT NULL, enabled TINYINT(1) NOT NULL DEFAULT 1, created_at DATETIME(3) NOT NULL, updated_at DATETIME(3) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
         "CREATE TABLE IF NOT EXISTS reminder_occurrences (id VARCHAR(64) PRIMARY KEY NOT NULL, template_id VARCHAR(64) NOT NULL, scheduled_at DATETIME(3) NOT NULL, grace_deadline_at DATETIME(3) NOT NULL, snoozed_until DATETIME(3) NULL, status VARCHAR(32) NOT NULL, handled_at DATETIME(3) NULL, created_at DATETIME(3) NOT NULL, updated_at DATETIME(3) NOT NULL, CONSTRAINT fk_occurrence_template FOREIGN KEY(template_id) REFERENCES reminder_templates(id), UNIQUE KEY uq_template_scheduled (template_id, scheduled_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
         "CREATE TABLE IF NOT EXISTS reminder_action_logs (id VARCHAR(64) PRIMARY KEY NOT NULL, occurrence_id VARCHAR(64) NOT NULL, action VARCHAR(64) NOT NULL, action_at DATETIME(3) NOT NULL, payload_json JSON NULL, CONSTRAINT fk_action_log_occurrence FOREIGN KEY(occurrence_id) REFERENCES reminder_occurrences(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-        "CREATE TABLE IF NOT EXISTS app_settings (id INTEGER PRIMARY KEY NOT NULL, default_grace_minutes INTEGER NOT NULL, startup_with_windows TINYINT(1) NOT NULL DEFAULT 0, tray_enabled TINYINT(1) NOT NULL DEFAULT 1, theme VARCHAR(32) NOT NULL DEFAULT 'system', quiet_hours_enabled TINYINT(1) NOT NULL DEFAULT 0, quiet_hours_start VARCHAR(8) NULL, quiet_hours_end VARCHAR(8) NULL, updated_at DATETIME(3) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+        "CREATE TABLE IF NOT EXISTS app_settings (id INTEGER PRIMARY KEY NOT NULL, default_grace_minutes INTEGER NOT NULL, startup_with_windows TINYINT(1) NOT NULL DEFAULT 0, tray_enabled TINYINT(1) NOT NULL DEFAULT 1, close_to_tray_on_close TINYINT(1) NOT NULL DEFAULT 1, theme VARCHAR(32) NOT NULL DEFAULT 'system', quiet_hours_enabled TINYINT(1) NOT NULL DEFAULT 0, quiet_hours_start VARCHAR(8) NULL, quiet_hours_end VARCHAR(8) NULL, updated_at DATETIME(3) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
     ]
 }

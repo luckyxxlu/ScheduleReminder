@@ -12,6 +12,12 @@ pub struct InMemoryReminderTemplateRepository {
 }
 
 impl InMemoryReminderTemplateRepository {
+    pub fn list(&self) -> Vec<ReminderTemplate> {
+        let mut items = self.items.values().cloned().collect::<Vec<_>>();
+        items.sort_by(|left, right| left.id.cmp(&right.id));
+        items
+    }
+
     pub fn create(
         &mut self,
         input: CreateReminderTemplateInput,
