@@ -49,7 +49,7 @@ cargo test --lib
 - GitHub Actions 工作流：`.github/workflows/windows-x86-release.yml`
 - 触发方式：
   - 手动触发 `workflow_dispatch`
-  - 推送版本标签，例如 `v0.1.0`
 - 产物：
   - Windows x86（`i686-pc-windows-msvc`）NSIS 安装包
-  - 标签触发时会自动创建 GitHub Release 并上传安装包
+  - 工作流会自动创建 GitHub Release，并上传可直接下载安装的 `.exe` 安装包
+  - 正式分发请以 Release 页面中的安装包资产为准

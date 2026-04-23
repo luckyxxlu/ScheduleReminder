@@ -2,9 +2,6 @@ name: windows-x86-release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "**"
 
 permissions:
   contents: write
@@ -84,5 +81,7 @@ jobs:
           tag_name: ${{ steps.release_version.outputs.tag }}
           name: ${{ steps.release_version.outputs.tag }}
           generate_release_notes: true
+          body: |
+            请直接下载下方的 Windows 安装包（`.exe`）使用应用。
           files: src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe
           fail_on_unmatched_files: true
