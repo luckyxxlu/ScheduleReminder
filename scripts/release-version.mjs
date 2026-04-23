@@ -47,6 +47,12 @@ export function extractChangedLineCount(summary) {
   return Number(insertions?.[1] ?? 0) + Number(deletions?.[1] ?? 0)
 }
 
+function ensureGlobalFlags(flags) {
+  const normalized = new Set(flags.split(''))
+  normalized.add('g')
+  return [...normalized].join('')
+}
+
 export function incrementVersion(version, bumpType) {
   switch (bumpType) {
     case 'major':
@@ -114,7 +120,7 @@ function getChangedLineCount(baseRef, headRef) {
 }
 
 function replaceExactlyOnce(content, pattern, replacement, filePath) {
-  const globalPattern = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+  const globalPattern = new RegExp(pattern.source, ensureGlobalFlags(pattern.flags))
   const matches = [...content.matchAll(globalPattern)]
 
   if (matches.length !== 1) {
@@ -221,6 +227,7 @@ function parseArgs(argv) {
     baseRef: undefined,
     headRef: 'HEAD',
     format: 'json',
+    rootDir: REPO_ROOT,
     write: false,
     thresholds: {
       patchMaxLines: process.env.RELEASE_PATCH_MAX_LINES,
@@ -251,6 +258,13 @@ function parseArgs(argv) {
           throw new Error('Missing value for --format')
         }
         options.format = argv[index + 1]
+        index += 1
+        break
+      case '--root-dir':
+        if (!argv[index + 1]) {
+          throw new Error('Missing value for --root-dir')
+        }
+        options.rootDir = path.resolve(argv[index + 1])
         index += 1
         break
       case '--write':
@@ -284,7 +298,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   })
 
   if (options.write) {
-    writeVersionFiles(result.version)
+    writeVersionFiles(result.version, options.rootDir)
   }
 
   emitResult(result, options.format)

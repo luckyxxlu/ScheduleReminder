@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 
 import { describe, expect, it } from 'vitest'
 
@@ -12,6 +13,8 @@ import {
   parseVersionTag,
   writeVersionFiles,
 } from './release-version.mjs'
+
+const SCRIPT_PATH = path.resolve(process.cwd(), 'scripts', 'release-version.mjs')
 
 describe('release version helpers', () => {
   it('parses semantic version tags', () => {
@@ -79,5 +82,49 @@ describe('release version helpers', () => {
     expect(JSON.parse(fs.readFileSync(path.join(tauriDir, 'tauri.conf.json'), 'utf8')).version).toBe('3.2.1')
     expect(fs.readFileSync(path.join(tauriDir, 'Cargo.toml'), 'utf8')).toContain('version = "3.2.1"')
     expect(fs.readFileSync(path.join(tauriDir, 'Cargo.lock'), 'utf8')).toContain('version = "3.2.1"')
+  })
+
+  it('supports the cli write path for version file updates', () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'schedule-reminder-cli-version-'))
+    const tauriDir = path.join(tempRoot, 'src-tauri')
+    fs.mkdirSync(tauriDir, { recursive: true })
+
+    fs.writeFileSync(
+      path.join(tempRoot, 'package.json'),
+      JSON.stringify({ name: 'schedule-reminder', version: '0.1.0' }, null, 2),
+    )
+    fs.writeFileSync(
+      path.join(tempRoot, 'package-lock.json'),
+      JSON.stringify(
+        {
+          name: 'schedule-reminder',
+          version: '0.1.0',
+          packages: {
+            '': {
+              name: 'schedule-reminder',
+              version: '0.1.0',
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    )
+    fs.writeFileSync(path.join(tauriDir, 'tauri.conf.json'), JSON.stringify({ version: '0.1.0' }, null, 2))
+    fs.writeFileSync(path.join(tauriDir, 'Cargo.toml'), '[package]\nname = "schedule-reminder"\nversion = "0.1.0"\n')
+    fs.writeFileSync(
+      path.join(tauriDir, 'Cargo.lock'),
+      '[[package]]\nname = "schedule-reminder"\nversion = "0.1.0"\n',
+    )
+
+    const output = execFileSync(
+      'node',
+      [SCRIPT_PATH, '--write', '--root-dir', tempRoot],
+      { encoding: 'utf8' },
+    )
+    const result = JSON.parse(output)
+
+    expect(JSON.parse(fs.readFileSync(path.join(tempRoot, 'package.json'), 'utf8')).version).toBe(result.version)
+    expect(fs.readFileSync(path.join(tauriDir, 'Cargo.toml'), 'utf8')).toContain(`version = "${result.version}"`)
   })
 })
