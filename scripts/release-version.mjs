@@ -240,10 +240,10 @@ function parseArgs(argv) {
 
     switch (argument) {
       case '--base-ref':
-        if (!argv[index + 1]) {
+        if (argv[index + 1] === undefined) {
           throw new Error('Missing value for --base-ref')
         }
-        options.baseRef = argv[index + 1]
+        options.baseRef = argv[index + 1] || undefined
         index += 1
         break
       case '--head-ref':

@@ -1,10 +1,10 @@
 name: windows-x86-release
 
 on:
-  workflow_dispatch:
   push:
     branches:
-      - "**"
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -76,7 +76,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "${{ steps.release_version.outputs.tag }}"
-          git push origin "${{ steps.release_version.outputs.tag }}"
+          # If push fails because the tag already exists on remote, treat it as success.
+          git push origin "${{ steps.release_version.outputs.tag }}" || \
+            git ls-remote --exit-code origin "refs/tags/${{ steps.release_version.outputs.tag }}"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
@@ -84,5 +86,7 @@ jobs:
           tag_name: ${{ steps.release_version.outputs.tag }}
           name: ${{ steps.release_version.outputs.tag }}
           generate_release_notes: true
+          body: |
+            请直接下载下方的 Windows 安装包（`.exe`）使用应用。
           files: src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe
           fail_on_unmatched_files: true
