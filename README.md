@@ -43,3 +43,13 @@ npm run build
 cd src-tauri
 cargo test --lib
 ```
+
+## 自动打包与发布
+
+- GitHub Actions 工作流：`.github/workflows/windows-x86-release.yml`
+- 触发方式：
+  - 手动触发 `workflow_dispatch`
+  - 推送版本标签，例如 `v0.1.0`
+- 产物：
+  - Windows x86（`i686-pc-windows-msvc`）NSIS 安装包
+  - 标签触发时会自动创建 GitHub Release 并上传安装包

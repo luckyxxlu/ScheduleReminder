@@ -1,0 +1,56 @@
+name: windows-x86-release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: i686-pc-windows-msvc
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib --target i686-pc-windows-msvc
+
+      - name: Build Windows x86 installer
+        run: npm run tauri -- build --target i686-pc-windows-msvc
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: schedule-reminder-windows-x86
+          path: src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe
+          fail_on_unmatched_files: true
