@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
+import { listen, TauriEvent } from '@tauri-apps/api/event'
 import { useNavigate } from 'react-router-dom'
 
+import { todayDashboardRefreshEvent } from '../../app/events'
 import {
   getTodayDashboard,
   graceNextReminderTenMinutes,
@@ -21,12 +23,10 @@ export function TodayPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  useEffect(() => {
-    let isMounted = true
-
+  const loadDashboard = useEffectEvent((isMounted: () => boolean) => {
     getTodayDashboard()
       .then((nextDashboard) => {
-        if (!isMounted) {
+        if (!isMounted()) {
           return
         }
 
@@ -34,15 +34,42 @@ export function TodayPage() {
         setErrorMessage(null)
       })
       .catch((error: unknown) => {
-        if (!isMounted) {
+        if (!isMounted()) {
           return
         }
 
         setErrorMessage(extractErrorMessage(error, '今天页加载失败'))
       })
+  })
+
+  useEffect(() => {
+    let mounted = true
+    const unlistenFns: Array<() => void> = []
+    const isMounted = () => mounted
+
+    loadDashboard(isMounted)
+    const timer = window.setInterval(() => loadDashboard(isMounted), 15000)
+
+    void Promise.all([
+      listen(todayDashboardRefreshEvent, () => {
+        loadDashboard(isMounted)
+      }),
+      listen(TauriEvent.WINDOW_FOCUS, () => {
+        loadDashboard(isMounted)
+      }),
+    ]).then((disposeFns) => {
+      if (!mounted) {
+        disposeFns.forEach((dispose) => dispose())
+        return
+      }
+
+      unlistenFns.push(...disposeFns)
+    })
 
     return () => {
-      isMounted = false
+      mounted = false
+      window.clearInterval(timer)
+      unlistenFns.forEach((dispose) => dispose())
     }
   }, [])
 
@@ -100,8 +127,8 @@ export function TodayPage() {
         </button>
       </header>
 
-      <div className="page-grid page-grid-two">
-        <article className="panel panel-hero">
+      <div className="bento-grid">
+        <article className="panel panel-hero bento-hero">
           <span className="panel-label">下一条提醒</span>
           {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
           {successMessage ? <p className="success-text">{successMessage}</p> : null}
@@ -121,7 +148,7 @@ export function TodayPage() {
             <p className="panel-text">正在加载今日提醒...</p>
           )}
           <div className="action-row">
-            <button className="secondary-button" disabled={!actionsEnabled} type="button" onClick={() => void handleComplete()}>
+            <button className="primary-button" disabled={!actionsEnabled} type="button" onClick={() => void handleComplete()}>
               完成
             </button>
             <button className="secondary-button" disabled={!actionsEnabled} type="button" onClick={() => void handleGraceTenMinutes()}>
@@ -154,9 +181,9 @@ export function TodayPage() {
               dashboard?.todayTimeline.map((item) => (
                 <div className={`timeline-item${item.isActive ? ' timeline-item-active' : ''}`} key={item.id}>
                   <div>
-                    <span>{item.time}</span>
+                    <span className="time">{item.time}</span>
                     <strong>{item.title}</strong>
-                    <p className="panel-text">{item.message}</p>
+                    <p className="panel-text" style={{margin: 0}}>{item.message}</p>
                   </div>
                   <span className={`status-chip status-${item.status}`}>{item.status}</span>
                 </div>
@@ -165,32 +192,36 @@ export function TodayPage() {
           </div>
         </article>
 
-        <article className="panel">
+        <article className="panel bento-metrics">
           <span className="panel-label">今日状态</span>
           <strong className="panel-title">{statusSummary.title}</strong>
           <p className="panel-text">{statusSummary.description}</p>
           <div className="today-metrics">
-            <article className="metric-card">
+            <div className="metric-card">
               <span>待处理</span>
               <strong>{pendingCount}</strong>
-            </article>
-            <article className="metric-card">
+            </div>
+            <div className="metric-card">
               <span>宽容中</span>
               <strong>{graceCount}</strong>
-            </article>
-            <article className="metric-card">
+            </div>
+            <div className="metric-card">
               <span>已完成</span>
               <strong>{completedCount}</strong>
-            </article>
+            </div>
           </div>
-          <div className="status-block">
-            <span className="panel-label">宽容中的提醒</span>
+        </article>
+
+        <article className="panel bento-logs">
+          <span className="panel-label">宽容中的提醒</span>
+          <div style={{ marginBottom: 24 }}>
             <strong className={`status-chip status-${dashboard?.highlightedStatus ?? '宽容中'}`}>
               {dashboard?.highlightedStatus ?? '宽容中'}
             </strong>
           </div>
+          
+          <span className="panel-label">最近操作</span>
           <div className="today-log-list">
-            <span className="panel-label">最近操作</span>
             {(dashboard?.recentActions ?? []).length === 0 ? (
               <p className="panel-text">今天还没有提醒处理记录。</p>
             ) : (

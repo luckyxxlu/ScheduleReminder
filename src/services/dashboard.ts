@@ -88,3 +88,13 @@ export async function createCalendarEvent(input: {
     time: input.time,
   })
 }
+
+export async function deleteCalendarEvent(input: {
+  occurrenceId: string
+  selectedDate: string
+}): Promise<CalendarOverviewData> {
+  return invoke<CalendarOverviewData>('delete_calendar_event', {
+    occurrenceId: input.occurrenceId,
+    selectedDate: input.selectedDate,
+  })
+}

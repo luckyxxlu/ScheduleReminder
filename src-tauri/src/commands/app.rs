@@ -1,8 +1,9 @@
-use chrono::{Duration, NaiveDateTime};
+use chrono::{Duration, NaiveDateTime, NaiveTime};
 use serde::Serialize;
 
 use crate::db::persistence::{
-    save_action_log, save_all_occurrences, save_all_templates, save_settings, PersistenceError,
+    delete_occurrence_and_logs, delete_template, save_action_log, save_all_occurrences,
+    save_all_templates, save_settings, PersistenceError,
 };
 use crate::db::reminder_template_repository::InMemoryReminderTemplateRepository;
 use crate::models::reminder_action_log::ReminderActionLog;
@@ -127,6 +128,12 @@ pub struct CreateCalendarEventInput {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeleteCalendarEventInput {
+    pub occurrence_id: String,
+    pub selected_date: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreateReminderTemplateCommandInput {
     pub title: String,
     pub message: String,
@@ -158,7 +165,7 @@ enum TodayReminderAction {
 
 #[tauri::command]
 pub fn greet(name: &str) -> String {
-    format!("你好，{name}。欢迎使用 ScheduleReminder。")
+    format!("你好，{name}。欢迎使用时间助手。")
 }
 
 pub fn seed_reminder_templates() -> InMemoryReminderTemplateRepository {
@@ -194,21 +201,26 @@ pub fn seed_reminder_templates() -> InMemoryReminderTemplateRepository {
 }
 
 pub fn seed_occurrences() -> Vec<ReminderOccurrence> {
+    let today = chrono::Local::now().date_naive();
+    let tomorrow = today + Duration::days(1);
+    let today_key = today.format("%Y-%m-%d").to_string();
+    let tomorrow_key = tomorrow.format("%Y-%m-%d").to_string();
+
     vec![
         ReminderOccurrence {
             id: "occ_1".to_string(),
             template_id: "tpl_1".to_string(),
-            scheduled_at: "2026-04-22 08:00:00".to_string(),
-            grace_deadline_at: "2026-04-22 08:10:00".to_string(),
-            snoozed_until: Some("2026-04-22 08:10:00".to_string()),
+            scheduled_at: format!("{today_key} 08:00:00"),
+            grace_deadline_at: format!("{today_key} 08:10:00"),
+            snoozed_until: Some(format!("{today_key} 08:10:00")),
             status: "grace".to_string(),
             handled_at: None,
         },
         ReminderOccurrence {
             id: "occ_2".to_string(),
             template_id: "tpl_2".to_string(),
-            scheduled_at: "2026-04-22 22:30:00".to_string(),
-            grace_deadline_at: "2026-04-22 22:45:00".to_string(),
+            scheduled_at: format!("{today_key} 22:30:00"),
+            grace_deadline_at: format!("{today_key} 22:45:00"),
             snoozed_until: None,
             status: "pending".to_string(),
             handled_at: None,
@@ -216,8 +228,8 @@ pub fn seed_occurrences() -> Vec<ReminderOccurrence> {
         ReminderOccurrence {
             id: "occ_3".to_string(),
             template_id: "tpl_1".to_string(),
-            scheduled_at: "2026-04-23 08:00:00".to_string(),
-            grace_deadline_at: "2026-04-23 08:10:00".to_string(),
+            scheduled_at: format!("{tomorrow_key} 08:00:00"),
+            grace_deadline_at: format!("{tomorrow_key} 08:10:00"),
             snoozed_until: None,
             status: "pending".to_string(),
             handled_at: None,
@@ -354,6 +366,7 @@ pub fn get_today_dashboard(
     runtime: &AppRuntimeState,
     templates: &ReminderTemplateState,
 ) -> Result<TodayDashboardData, ReminderTemplateCommandError> {
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let occurrences = runtime
         .occurrences
         .lock()
@@ -367,11 +380,21 @@ pub fn get_today_dashboard(
         .lock()
         .map_err(|_| command_error("提醒日志状态不可用"))?;
 
-    let recent_actions: Vec<TodayActionItem> = action_logs.iter().take(4).map(map_today_action_item).collect();
-    let highlighted_status = highlighted_status(&occurrences).to_string();
-
-    let next_occurrence = occurrences
+    let today_occurrences = occurrences
         .iter()
+        .filter(|item| date_part(&item.scheduled_at) == today.as_str())
+        .collect::<Vec<_>>();
+    let recent_actions: Vec<TodayActionItem> = action_logs
+        .iter()
+        .filter(|item| item.action_at.starts_with(&format!("{today} ")))
+        .take(4)
+        .map(map_today_action_item)
+        .collect();
+    let highlighted_status = highlighted_status_for_today(&today_occurrences).to_string();
+
+    let next_occurrence = today_occurrences
+        .iter()
+        .copied()
         .filter(|item| matches!(item.status.as_str(), "grace" | "pending"))
         .min_by(|left, right| {
             occurrence_priority(&left.status)
@@ -381,10 +404,8 @@ pub fn get_today_dashboard(
 
     let next_occurrence = match next_occurrence {
         None => {
-            let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-            let today_timeline = occurrences
+            let today_timeline = today_occurrences
                 .iter()
-                .filter(|item| date_part(&item.scheduled_at) == today.as_str())
                 .filter_map(|item| {
                     repository.get(&item.template_id).map(|t| TodayTimelineItem {
                         id: item.id.clone(),
@@ -422,9 +443,8 @@ pub fn get_today_dashboard(
     let next_message = extract_json_string_field(&template.event_payload_json, "message")
         .unwrap_or_else(|| "提醒内容缺失".to_string());
 
-    let timeline = occurrences
+    let timeline = today_occurrences
         .iter()
-        .filter(|item| date_part(&item.scheduled_at) == date_part(&next_occurrence.scheduled_at))
         .filter_map(|item| {
             repository.get(&item.template_id).map(|timeline_template| TodayTimelineItem {
                 id: item.id.clone(),
@@ -456,10 +476,22 @@ pub fn get_today_dashboard(
         Vec::new()
     };
 
+    let next_reminder_time = if next_occurrence.status == "pending" {
+        time_part(
+            next_occurrence
+                .snoozed_until
+                .as_deref()
+                .unwrap_or(&next_occurrence.scheduled_at),
+        )
+        .to_string()
+    } else {
+        time_part(&next_occurrence.scheduled_at).to_string()
+    };
+
     Ok(TodayDashboardData {
         active_reminder_id: next_occurrence.id.clone(),
         next_reminder_title: template.title.clone(),
-        next_reminder_time: time_part(&next_occurrence.scheduled_at).to_string(),
+        next_reminder_time,
         next_reminder_message: next_message,
         next_reminder_status: next_status,
         next_reminder_notification_state: notification_state,
@@ -577,7 +609,8 @@ pub fn create_calendar_event(
         .map_err(|_| command_error("提醒实例状态不可用"))?;
 
     let next_id = occurrences.len() + 1;
-    let scheduled_at = format!("{} {}:00", input.selected_date, input.time);
+    let normalized_time = normalize_time_input(&input.time)?;
+    let scheduled_at = format!("{} {normalized_time}", input.selected_date);
     let grace_deadline_at = add_minutes_to_timestamp(&scheduled_at, settings.default_grace_minutes.max(0) as u32);
 
     occurrences.push(ReminderOccurrence {
@@ -593,6 +626,61 @@ pub fn create_calendar_event(
     save_all_occurrences(&database.pool, &occurrences).map_err(map_persistence_error)?;
 
     drop(occurrences);
+
+    get_calendar_overview(runtime, templates, input.selected_date)
+}
+
+pub fn delete_calendar_event(
+    runtime: &AppRuntimeState,
+    templates: &ReminderTemplateState,
+    database: &DatabaseState,
+    input: DeleteCalendarEventInput,
+) -> Result<CalendarOverviewData, ReminderTemplateCommandError> {
+    let (removed_template_id, should_delete_template) = {
+        let mut occurrences = runtime
+            .occurrences
+            .lock()
+            .map_err(|_| command_error("提醒实例状态不可用"))?;
+
+        let removed_occurrence = occurrences
+            .iter()
+            .find(|item| item.id == input.occurrence_id)
+            .cloned()
+            .ok_or_else(|| command_error("要删除的提醒事件不存在"))?;
+
+        occurrences.retain(|item| item.id != input.occurrence_id);
+        let template_id = removed_occurrence.template_id.clone();
+        let should_delete_template = !occurrences.iter().any(|item| item.template_id == template_id);
+
+        (template_id, should_delete_template)
+    };
+
+    {
+        let mut action_logs = runtime
+            .action_logs
+            .lock()
+            .map_err(|_| command_error("提醒日志状态不可用"))?;
+        action_logs.retain(|item| item.occurrence_id != input.occurrence_id);
+    }
+
+    delete_occurrence_and_logs(&database.pool, &input.occurrence_id).map_err(map_persistence_error)?;
+
+    {
+        let mut repository = templates
+            .repository
+            .lock()
+            .map_err(|_| command_error("提醒模板状态不可用"))?;
+
+        let is_calendar_template = repository
+            .get(&removed_template_id)
+            .and_then(|template| template.category.as_deref())
+            == Some("calendar");
+
+        if should_delete_template && is_calendar_template {
+            repository.delete(&removed_template_id).map_err(map_template_error)?;
+            delete_template(&database.pool, &removed_template_id).map_err(map_persistence_error)?;
+        }
+    }
 
     get_calendar_overview(runtime, templates, input.selected_date)
 }
@@ -726,7 +814,7 @@ fn map_settings_view(settings: &AppSettings) -> SettingsViewData {
     }
 }
 
-fn highlighted_status(occurrences: &[ReminderOccurrence]) -> String {
+fn highlighted_status_for_today(occurrences: &[&ReminderOccurrence]) -> String {
     if let Some(item) = occurrences.iter().find(|item| item.status == "grace") {
         return status_label(&item.status).to_string();
     }
@@ -770,6 +858,7 @@ fn apply_today_reminder_action(
     database: &DatabaseState,
     action: TodayReminderAction,
 ) -> Result<TodayDashboardData, ReminderTemplateCommandError> {
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let mut occurrences = runtime
         .occurrences
         .lock()
@@ -777,12 +866,11 @@ fn apply_today_reminder_action(
 
     let occurrence = occurrences
         .iter_mut()
-        .find(|item| item.status == "grace")
+        .find(|item| item.status == "grace" && date_part(&item.scheduled_at) == today.as_str())
         .ok_or_else(|| command_error("当前没有宽容中的提醒"))?;
-    let action_time = occurrence
-        .snoozed_until
-        .clone()
-        .unwrap_or_else(|| occurrence.scheduled_at.clone());
+    let action_time = chrono::Local::now()
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();
 
     let log: ReminderActionLog = match action {
         TodayReminderAction::Complete => {
@@ -838,10 +926,24 @@ fn month_day_prefix(date: &str) -> String {
 }
 
 fn time_part(timestamp: &str) -> &str {
-    timestamp
-        .split_once(' ')
-        .map(|(_, time)| &time[..5])
-        .unwrap_or(timestamp)
+    let Some((_, time)) = timestamp.split_once(' ') else {
+        return timestamp;
+    };
+
+    if time.len() >= 8 && !time.ends_with(":00") {
+        &time[..8]
+    } else if time.len() >= 5 {
+        &time[..5]
+    } else {
+        time
+    }
+}
+
+fn normalize_time_input(time: &str) -> Result<String, ReminderTemplateCommandError> {
+    NaiveTime::parse_from_str(time, "%H:%M:%S")
+        .or_else(|_| NaiveTime::parse_from_str(time, "%H:%M"))
+        .map(|parsed| parsed.format("%H:%M:%S").to_string())
+        .map_err(|_| command_error("提醒时间格式不正确"))
 }
 
 fn occurrence_priority(status: &str) -> u8 {
@@ -1098,6 +1200,25 @@ pub fn create_calendar_event_command(
 }
 
 #[tauri::command]
+pub fn delete_calendar_event_command(
+    runtime: tauri::State<'_, AppRuntimeState>,
+    templates: tauri::State<'_, ReminderTemplateState>,
+    database: tauri::State<'_, DatabaseState>,
+    occurrence_id: String,
+    selected_date: String,
+) -> Result<CalendarOverviewData, ReminderTemplateCommandError> {
+    delete_calendar_event(
+        &runtime,
+        &templates,
+        &database,
+        DeleteCalendarEventInput {
+            occurrence_id,
+            selected_date,
+        },
+    )
+}
+
+#[tauri::command]
 pub fn get_settings_command(
     runtime: tauri::State<'_, AppRuntimeState>,
 ) -> Result<SettingsViewData, ReminderTemplateCommandError> {
@@ -1128,12 +1249,13 @@ mod tests {
     use std::sync::MutexGuard;
 
     use crate::commands::app::{
-        create_calendar_event, default_app_settings, duplicate_reminder_template,
+        create_calendar_event, default_app_settings, delete_calendar_event, duplicate_reminder_template,
         get_calendar_overview, get_settings, get_today_dashboard, list_reminder_templates,
         mark_next_reminder_completed, mark_next_reminder_grace_ten_minutes,
         seed_occurrences, seed_reminder_templates, skip_next_reminder, snooze_next_reminder,
         toggle_reminder_template, update_reminder_template, update_settings, CreateCalendarEventInput,
-        CreateReminderTemplateCommandInput, UpdateReminderTemplateCommandInput, UpdateSettingsInput,
+        CreateReminderTemplateCommandInput, DeleteCalendarEventInput, UpdateReminderTemplateCommandInput,
+        UpdateSettingsInput,
     };
     use crate::db::migration::initialize_database;
     use crate::db::persistence::{bootstrap_defaults, load_occurrences};
@@ -1339,6 +1461,21 @@ mod tests {
     }
 
     #[test]
+    fn returns_pending_dashboard_time_from_snoozed_until() {
+        let mut occurrences = seed_occurrences();
+        occurrences[0].status = "pending".to_string();
+        occurrences[0].snoozed_until = Some(format!("{} 08:05:00", chrono::Local::now().format("%Y-%m-%d")));
+        occurrences[0].grace_deadline_at = format!("{} 08:15:00", chrono::Local::now().format("%Y-%m-%d"));
+        let runtime = AppRuntimeState::new(occurrences, vec![], default_app_settings());
+        let templates = create_state();
+
+        let dashboard = get_today_dashboard(&runtime, &templates).expect("today data should load");
+
+        assert_eq!(dashboard.next_reminder_status, "待处理");
+        assert_eq!(dashboard.next_reminder_time, "08:05");
+    }
+
+    #[test]
     fn marks_next_reminder_as_completed() {
         let runtime = create_runtime_state();
         let templates = create_state();
@@ -1366,11 +1503,29 @@ mod tests {
         let dashboard = mark_next_reminder_grace_ten_minutes(&runtime, &templates, &database)
             .expect("grace ten should succeed");
         let persisted = load_occurrences(&database.pool).expect("occurrences should persist");
+        let occurrence = persisted
+            .iter()
+            .find(|item| item.id == "occ_1")
+            .expect("updated occurrence should exist");
+        let snoozed_until = chrono::NaiveDateTime::parse_from_str(
+            occurrence
+                .snoozed_until
+                .as_deref()
+                .expect("snoozed_until should be set"),
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("snoozed_until should parse");
+        let grace_deadline = chrono::NaiveDateTime::parse_from_str(
+            &occurrence.grace_deadline_at,
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("grace_deadline should parse");
+        let now = chrono::Local::now().naive_local();
 
-        assert_eq!(dashboard.highlighted_status, "宽容中");
-        assert!(persisted.iter().any(|item| {
-            item.id == "occ_1" && item.snoozed_until.as_deref() == Some("2026-04-22 08:20:00")
-        }));
+        assert_eq!(dashboard.highlighted_status, "待处理");
+        assert_eq!(occurrence.status, "pending");
+        assert!((540..=660).contains(&(snoozed_until - now).num_seconds()));
+        assert_eq!((grace_deadline - snoozed_until).num_minutes(), 10);
         cleanup_database_state(database);
     }
 
@@ -1385,11 +1540,63 @@ mod tests {
         let dashboard = snooze_next_reminder(&runtime, &templates, &database, 15)
             .expect("snooze should succeed");
         let persisted = load_occurrences(&database.pool).expect("occurrences should persist");
+        let occurrence = persisted
+            .iter()
+            .find(|item| item.id == "occ_1")
+            .expect("updated occurrence should exist");
+        let snoozed_until = chrono::NaiveDateTime::parse_from_str(
+            occurrence
+                .snoozed_until
+                .as_deref()
+                .expect("snoozed_until should be set"),
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("snoozed_until should parse");
+        let grace_deadline = chrono::NaiveDateTime::parse_from_str(
+            &occurrence.grace_deadline_at,
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("grace_deadline should parse");
+        let now = chrono::Local::now().naive_local();
 
-        assert_eq!(dashboard.highlighted_status, "宽容中");
-        assert!(persisted.iter().any(|item| {
-            item.id == "occ_1" && item.snoozed_until.as_deref() == Some("2026-04-22 08:25:00")
-        }));
+        assert_eq!(dashboard.highlighted_status, "待处理");
+        assert_eq!(occurrence.status, "pending");
+        assert!((840..=960).contains(&(snoozed_until - now).num_seconds()));
+        assert_eq!((grace_deadline - snoozed_until).num_minutes(), 10);
+        cleanup_database_state(database);
+    }
+
+    #[test]
+    fn snoozes_from_current_time_instead_of_previous_trigger_time() {
+        let runtime = create_runtime_state();
+        let templates = create_state();
+        let Some(database) = create_database_state("snooze_now_base") else {
+            return;
+        };
+
+        let dashboard = snooze_next_reminder(&runtime, &templates, &database, 5)
+            .expect("snooze should succeed");
+        let persisted = load_occurrences(&database.pool).expect("occurrences should persist");
+        let occurrence = persisted
+            .iter()
+            .find(|item| item.id == "occ_1")
+            .expect("updated occurrence should exist");
+
+        assert_eq!(dashboard.highlighted_status, "待处理");
+        assert_eq!(occurrence.status, "pending");
+
+        let snoozed_until = chrono::NaiveDateTime::parse_from_str(
+            occurrence
+                .snoozed_until
+                .as_deref()
+                .expect("snoozed_until should be set"),
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("snoozed_until should parse");
+        let now = chrono::Local::now().naive_local();
+        let diff_seconds = (snoozed_until - now).num_seconds();
+
+        assert!((240..=360).contains(&diff_seconds));
         cleanup_database_state(database);
     }
 
@@ -1414,12 +1621,14 @@ mod tests {
     fn returns_calendar_entries_for_selected_date() {
         let runtime = create_runtime_state();
         let templates = create_state();
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let month_key = chrono::Local::now().format("%Y-%m").to_string();
 
-        let overview = get_calendar_overview(&runtime, &templates, "2026-04-22".to_string())
+        let overview = get_calendar_overview(&runtime, &templates, today.clone())
             .expect("calendar data should load");
 
-        assert_eq!(overview.selected_date, "2026-04-22");
-        assert_eq!(overview.month_key, "2026-04");
+        assert_eq!(overview.selected_date, today);
+        assert_eq!(overview.month_key, month_key);
         assert_eq!(overview.month_entries.len(), 2);
         assert_eq!(overview.entries.len(), 2);
         assert_eq!(overview.entries[0].title, "喝水提醒");
@@ -1441,7 +1650,7 @@ mod tests {
             CreateCalendarEventInput {
                 title: "深度工作".to_string(),
                 message: "开始今天的专注时段".to_string(),
-                selected_date: "2026-04-22".to_string(),
+                selected_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
                 time: "14:30".to_string(),
             },
         )
@@ -1453,6 +1662,40 @@ mod tests {
             .list()
             .iter()
             .any(|item| item.title == "深度工作"));
+        cleanup_database_state(database);
+    }
+
+    #[test]
+    fn creates_calendar_event_for_selected_date_with_seconds() {
+        let runtime = create_runtime_state();
+        let templates = create_state();
+        let Some(database) = create_database_state("calendar_event_seconds") else {
+            return;
+        };
+
+        let selected_date = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let overview = create_calendar_event(
+            &runtime,
+            &templates,
+            &database,
+            CreateCalendarEventInput {
+                title: "秒级提醒".to_string(),
+                message: "精确到秒的提醒".to_string(),
+                selected_date: selected_date.clone(),
+                time: "14:30:45".to_string(),
+            },
+        )
+        .expect("calendar event with seconds should be created");
+
+        assert!(overview.entries.iter().any(|item| item.title == "秒级提醒" && item.time == "14:30:45"));
+
+        let persisted = load_occurrences(&database.pool).expect("occurrences should persist");
+        assert!(persisted.iter().any(|item| {
+            item.template_id.starts_with("tpl_")
+                && item.scheduled_at == format!("{selected_date} 14:30:45")
+                && item.grace_deadline_at == format!("{selected_date} 14:40:45")
+        }));
+
         cleanup_database_state(database);
     }
 
@@ -1488,6 +1731,33 @@ mod tests {
             item.scheduled_at == "2026-04-30 23:55:00"
                 && item.grace_deadline_at == "2026-05-01 00:05:00"
         }));
+        cleanup_database_state(database);
+    }
+
+    #[test]
+    fn deletes_calendar_event_occurrence() {
+        let runtime = create_runtime_state();
+        let templates = create_state();
+        let Some(database) = create_database_state("delete_calendar_event") else {
+            return;
+        };
+
+        let overview = delete_calendar_event(
+            &runtime,
+            &templates,
+            &database,
+            DeleteCalendarEventInput {
+                occurrence_id: "occ_1".to_string(),
+                selected_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
+            },
+        )
+        .expect("calendar event should be deleted");
+
+        let persisted_occurrences = load_occurrences(&database.pool).expect("occurrences should persist");
+
+        assert!(!persisted_occurrences.iter().any(|item| item.id == "occ_1"));
+        assert!(lock_state(&templates).get("tpl_1").is_some());
+        assert!(!overview.entries.iter().any(|item| item.id == "occ_1"));
         cleanup_database_state(database);
     }
 

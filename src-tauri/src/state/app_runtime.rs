@@ -1,13 +1,14 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::models::reminder_action_log::ReminderActionLog;
 use crate::models::reminder_occurrence::ReminderOccurrence;
 use crate::settings::app_settings::AppSettings;
 
+#[derive(Clone)]
 pub struct AppRuntimeState {
-    pub occurrences: Mutex<Vec<ReminderOccurrence>>,
-    pub action_logs: Mutex<Vec<ReminderActionLog>>,
-    pub settings: Mutex<AppSettings>,
+    pub occurrences: Arc<Mutex<Vec<ReminderOccurrence>>>,
+    pub action_logs: Arc<Mutex<Vec<ReminderActionLog>>>,
+    pub settings: Arc<Mutex<AppSettings>>,
 }
 
 impl AppRuntimeState {
@@ -17,9 +18,9 @@ impl AppRuntimeState {
         settings: AppSettings,
     ) -> Self {
         Self {
-            occurrences: Mutex::new(occurrences),
-            action_logs: Mutex::new(action_logs),
-            settings: Mutex::new(settings),
+            occurrences: Arc::new(Mutex::new(occurrences)),
+            action_logs: Arc::new(Mutex::new(action_logs)),
+            settings: Arc::new(Mutex::new(settings)),
         }
     }
 }

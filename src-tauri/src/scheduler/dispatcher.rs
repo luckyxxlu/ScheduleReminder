@@ -19,17 +19,24 @@ pub fn scan_occurrences(
     let mut logs = Vec::new();
 
     for occurrence in occurrences.iter_mut() {
-        if occurrence.status == "pending" && occurrence.scheduled_at.as_str() <= now {
-            occurrence.status = "grace".to_string();
-            triggered_ids.push(occurrence.id.clone());
-            logs.push(ReminderActionLog {
-                id: format!("log_dispatch_{}", occurrence.id),
-                occurrence_id: occurrence.id.clone(),
-                action: "notification_dispatched".to_string(),
-                action_at: now.to_string(),
-                payload_json: None,
-            });
-            continue;
+        if occurrence.status == "pending" {
+            let trigger_at = occurrence
+                .snoozed_until
+                .as_deref()
+                .unwrap_or(&occurrence.scheduled_at);
+
+            if trigger_at <= now {
+                occurrence.status = "grace".to_string();
+                triggered_ids.push(occurrence.id.clone());
+                logs.push(ReminderActionLog {
+                    id: format!("log_dispatch_{}", occurrence.id),
+                    occurrence_id: occurrence.id.clone(),
+                    action: "notification_dispatched".to_string(),
+                    action_at: now.to_string(),
+                    payload_json: None,
+                });
+                continue;
+            }
         }
 
         let expiry = occurrence
@@ -187,6 +194,20 @@ mod tests {
         let late = scan_occurrences("2026-04-22 08:20:01", &mut occurrences);
         assert_eq!(occurrences[0].status, "missed");
         assert_eq!(late.missed_ids, vec!["occ_1".to_string()]);
+    }
+
+    #[test]
+    fn triggers_pending_snoozed_occurrence_when_snooze_time_arrives() {
+        let mut occurrence = pending_occurrence();
+        occurrence.snoozed_until = Some("2026-04-22 08:05:00".to_string());
+        occurrence.grace_deadline_at = "2026-04-22 08:15:00".to_string();
+        let mut occurrences = vec![occurrence];
+
+        let result = scan_occurrences("2026-04-22 08:05:00", &mut occurrences);
+
+        assert_eq!(occurrences[0].status, "grace");
+        assert_eq!(result.triggered_ids, vec!["occ_1".to_string()]);
+        assert_eq!(result.logs[0].action, "notification_dispatched");
     }
 
     #[test]

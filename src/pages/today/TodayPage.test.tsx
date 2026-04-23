@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
+import { listen } from '@tauri-apps/api/event'
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
 
@@ -19,6 +21,13 @@ import {
 
 import { TodayPage } from './TodayPage'
 
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockResolvedValue(() => {}),
+  TauriEvent: {
+    WINDOW_FOCUS: 'tauri://focus',
+  },
+}))
+
 vi.mock('../../services/dashboard', () => ({
   getTodayDashboard: vi.fn(),
   graceNextReminderTenMinutes: vi.fn(),
@@ -32,6 +41,7 @@ const mockedGraceNextReminderTenMinutes = vi.mocked(graceNextReminderTenMinutes)
 const mockedMarkNextReminderCompleted = vi.mocked(markNextReminderCompleted)
 const mockedSkipNextReminder = vi.mocked(skipNextReminder)
 const mockedSnoozeNextReminder = vi.mocked(snoozeNextReminder)
+const mockedListen = vi.mocked(listen)
 
 function createDeferredPromise<T>() {
   let resolve!: (value: T) => void
@@ -47,6 +57,8 @@ function createDeferredPromise<T>() {
 
 describe('TodayPage', () => {
   beforeEach(() => {
+    mockedListen.mockReset()
+    mockedListen.mockResolvedValue(() => {})
     mockedGetTodayDashboard.mockResolvedValue({
       activeReminderId: 'occ_2',
       nextReminderTitle: '准备休息',
@@ -138,20 +150,20 @@ describe('TodayPage', () => {
     mockedSnoozeNextReminder.mockResolvedValue({
       activeReminderId: 'occ_2',
       nextReminderTitle: '准备休息',
-      nextReminderTime: '22:30',
+      nextReminderTime: '23:00',
       nextReminderMessage: '准备休息，放下屏幕',
-      nextReminderStatus: '宽容中',
-      nextReminderNotificationState: '这条提醒已进入宽容时间，对应 Windows 通知已触发。',
+      nextReminderStatus: '待处理',
+      nextReminderNotificationState: '到达提醒时间后会发送 Windows 通知。',
       nextReminderGraceDeadline: '23:00',
-      nextReminderAvailableActions: ['complete', 'grace_10_minutes', 'snooze', 'skip'],
-      highlightedStatus: '宽容中',
+      nextReminderAvailableActions: [],
+      highlightedStatus: '待处理',
       todayTimeline: [
         {
           id: 'occ_2',
-          time: '22:30',
+          time: '23:00',
           title: '准备休息',
           message: '准备休息，放下屏幕',
-          status: '宽容中',
+          status: '待处理',
           isActive: true,
         },
       ],
@@ -210,6 +222,8 @@ describe('TodayPage', () => {
 
     await waitFor(() => {
       expect(mockedSnoozeNextReminder).toHaveBeenCalledWith(30)
+      expect(screen.getByText('已稍后提醒 30 分钟')).toBeInTheDocument()
+      expect(screen.getByText('23:00 准备休息')).toBeInTheDocument()
     })
   })
 
@@ -386,5 +400,51 @@ describe('TodayPage', () => {
     await waitFor(() => {
       expect(screen.queryByText('不应显示')).not.toBeInTheDocument()
     })
+  })
+
+  it('refreshes immediately when receiving dashboard refresh event', async () => {
+    const listeners = new Map<string, () => void>()
+
+    mockedListen.mockImplementation(async (event, handler) => {
+      listeners.set(String(event), () => handler({ event, id: 1, payload: undefined }))
+      return () => {
+        listeners.delete(String(event))
+      }
+    })
+
+    mockedGetTodayDashboard
+      .mockResolvedValueOnce({
+        activeReminderId: 'occ_2',
+        nextReminderTitle: '准备休息',
+        nextReminderTime: '22:30',
+        nextReminderMessage: '准备休息，放下屏幕',
+        nextReminderStatus: '宽容中',
+        nextReminderNotificationState: '这条提醒已进入宽容时间，对应 Windows 通知已触发。',
+        nextReminderGraceDeadline: '22:45',
+        nextReminderAvailableActions: ['complete', 'grace_10_minutes', 'snooze', 'skip'],
+        highlightedStatus: '宽容中',
+        todayTimeline: [],
+        recentActions: [],
+      })
+      .mockResolvedValueOnce({
+        activeReminderId: 'occ_7',
+        nextReminderTitle: '新建联动提醒',
+        nextReminderTime: '19:30',
+        nextReminderMessage: '来自日历的新提醒',
+        nextReminderStatus: '待处理',
+        nextReminderNotificationState: '到达提醒时间后会发送 Windows 通知。',
+        nextReminderGraceDeadline: null,
+        nextReminderAvailableActions: [],
+        highlightedStatus: '待处理',
+        todayTimeline: [],
+        recentActions: [],
+      })
+
+    render(<TodayPage />)
+
+    await screen.findByText('22:30 准备休息')
+    listeners.get('today-dashboard-refresh-requested')?.()
+
+    expect(await screen.findByText('19:30 新建联动提醒')).toBeInTheDocument()
   })
 })

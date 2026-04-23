@@ -4,7 +4,7 @@ version = "1.0.1"
 edition = "2021"
 
 [package.metadata]
-description = "ScheduleReminder desktop app"
+description = "时间助手桌面应用"
 
 [lib]
 name = "schedule_reminder"
@@ -14,7 +14,8 @@ path = "src/lib.rs"
 chrono = { version = "0.4", features = ["std"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-notification = "2"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

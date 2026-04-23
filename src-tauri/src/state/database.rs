@@ -1,5 +1,6 @@
 use crate::db::migration::DbPool;
 
+#[derive(Clone)]
 pub struct DatabaseState {
     pub pool: DbPool,
     pub database_path: Option<String>,

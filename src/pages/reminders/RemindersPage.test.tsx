@@ -112,12 +112,13 @@ describe('RemindersPage', () => {
   it('toggles template enabled state', async () => {
     render(<RemindersPage />)
 
-    const toggle = await screen.findByRole('button', { name: '已启用' })
+    const toggle = await screen.findByRole('button', { name: '停用' })
     fireEvent.click(toggle)
 
     await waitFor(() => {
       expect(mockedToggleReminderTemplate).toHaveBeenCalledWith('tpl_1', false)
-      expect(screen.getByRole('button', { name: '已暂停' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '启用' })).toBeInTheDocument()
+      expect(screen.getByText('已暂停')).toBeInTheDocument()
     })
   })
 
@@ -141,7 +142,7 @@ describe('RemindersPage', () => {
 
     render(<RemindersPage />)
 
-    fireEvent.click(await screen.findByRole('button', { name: '已暂停' }))
+    fireEvent.click(await screen.findByRole('button', { name: '启用' }))
 
     await waitFor(() => {
       expect(screen.getByText('午休提醒')).toBeInTheDocument()
@@ -447,7 +448,7 @@ describe('RemindersPage', () => {
 
     render(<RemindersPage />)
 
-    fireEvent.click(await screen.findByRole('button', { name: '已启用' }))
+    fireEvent.click(await screen.findByRole('button', { name: '停用' }))
 
     expect(await screen.findByText('提醒模板状态更新失败')).toBeInTheDocument()
   })
@@ -457,7 +458,7 @@ describe('RemindersPage', () => {
 
     render(<RemindersPage />)
 
-    fireEvent.click(await screen.findByRole('button', { name: '已启用' }))
+    fireEvent.click(await screen.findByRole('button', { name: '停用' }))
 
     expect(await screen.findByText('提醒模板状态更新失败')).toBeInTheDocument()
   })

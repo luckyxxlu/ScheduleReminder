@@ -113,8 +113,8 @@ describe('reminderTemplates service', () => {
       title: '晨间计划',
       message: '开始今天的安排',
       category: null,
-      repeat_rule_json: '{"type":"none","time":"08:00"}',
-      default_grace_minutes: 5,
+      repeatRuleJson: '{"type":"none","time":"08:00"}',
+      defaultGraceMinutes: 5,
       note: null,
     })
   })
@@ -136,8 +136,8 @@ describe('reminderTemplates service', () => {
       title: '晨间计划',
       message: '开始今天的安排',
       category: null,
-      repeat_rule_json: '{"type":"none","time":"08:00"}',
-      default_grace_minutes: 5,
+      repeatRuleJson: '{"type":"none","time":"08:00"}',
+      defaultGraceMinutes: 5,
       note: null,
       enabled: false,
     })

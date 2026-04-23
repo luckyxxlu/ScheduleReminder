@@ -23,7 +23,12 @@ pub fn snooze_occurrence(
         return Err(GraceError::InvalidSnoozeMinutes);
     }
 
-    occurrence.snoozed_until = Some(add_minutes(now, minutes));
+    let grace_minutes = active_grace_minutes(occurrence)?;
+    let next_trigger_at = add_minutes(now, minutes);
+
+    occurrence.status = "pending".to_string();
+    occurrence.snoozed_until = Some(next_trigger_at.clone());
+    occurrence.grace_deadline_at = add_minutes(&next_trigger_at, grace_minutes);
 
     Ok(ReminderActionLog {
         id: format!("log_snooze_{}_{}", occurrence.id, minutes),
@@ -83,6 +88,33 @@ fn add_minutes(timestamp: &str, minutes: u32) -> String {
         .to_string()
 }
 
+fn active_grace_minutes(occurrence: &ReminderOccurrence) -> Result<u32, GraceError> {
+    let active_trigger_at = occurrence
+        .snoozed_until
+        .as_deref()
+        .unwrap_or(&occurrence.scheduled_at);
+    let trigger_at = NaiveDateTime::parse_from_str(active_trigger_at, "%Y-%m-%d %H:%M:%S")
+        .expect("timestamp should match %Y-%m-%d %H:%M:%S");
+    let grace_deadline = NaiveDateTime::parse_from_str(&occurrence.grace_deadline_at, "%Y-%m-%d %H:%M:%S")
+        .expect("timestamp should match %Y-%m-%d %H:%M:%S");
+    let minutes = (grace_deadline - trigger_at).num_minutes();
+
+    if minutes > 0 {
+        return Ok(minutes as u32);
+    }
+
+    // Older persisted data may have snoozed_until and grace_deadline_at set to the same value.
+    let scheduled_at = NaiveDateTime::parse_from_str(&occurrence.scheduled_at, "%Y-%m-%d %H:%M:%S")
+        .expect("timestamp should match %Y-%m-%d %H:%M:%S");
+    let fallback_minutes = (grace_deadline - scheduled_at).num_minutes();
+
+    if fallback_minutes < 0 {
+        return Err(GraceError::NotInGrace);
+    }
+
+    Ok(fallback_minutes as u32)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::models::reminder_occurrence::ReminderOccurrence;
@@ -108,7 +140,9 @@ mod tests {
         let log = snooze_occurrence(&mut occurrence, "2026-04-22 08:00:00", 10, "grace_10_minutes")
             .expect("10 minute grace should succeed");
 
+        assert_eq!(occurrence.status, "pending");
         assert_eq!(occurrence.snoozed_until.as_deref(), Some("2026-04-22 08:10:00"));
+        assert_eq!(occurrence.grace_deadline_at.as_str(), "2026-04-22 08:20:00");
         assert_eq!(log.action, "grace_10_minutes");
     }
 
@@ -173,6 +207,21 @@ mod tests {
         snooze_occurrence(&mut occurrence, "2026-04-30 23:55:00", 10, "grace_10_minutes")
             .expect("cross-day snooze should succeed");
 
+        assert_eq!(occurrence.status, "pending");
         assert_eq!(occurrence.snoozed_until.as_deref(), Some("2026-05-01 00:05:00"));
+        assert_eq!(occurrence.grace_deadline_at.as_str(), "2026-05-01 00:15:00");
+    }
+
+    #[test]
+    fn preserves_existing_grace_window_after_repeat_snooze() {
+        let mut occurrence = grace_occurrence();
+        occurrence.snoozed_until = Some("2026-04-22 08:15:00".to_string());
+        occurrence.grace_deadline_at = "2026-04-22 08:25:00".to_string();
+
+        snooze_occurrence(&mut occurrence, "2026-04-22 08:16:00", 5, "snoozed")
+            .expect("repeat snooze should keep original grace window");
+
+        assert_eq!(occurrence.snoozed_until.as_deref(), Some("2026-04-22 08:21:00"));
+        assert_eq!(occurrence.grace_deadline_at.as_str(), "2026-04-22 08:31:00");
     }
 }

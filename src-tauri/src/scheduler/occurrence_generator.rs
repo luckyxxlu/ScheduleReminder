@@ -21,7 +21,11 @@ pub fn generate_occurrences(
     let mut keys = HashSet::new();
 
     for (index, date) in dates.into_iter().enumerate() {
-        let scheduled_at = format!("{date} {time}:00");
+        let scheduled_at = if time.matches(':').count() == 2 {
+            format!("{date} {time}")
+        } else {
+            format!("{date} {time}:00")
+        };
 
         if !keys.insert((template.id.clone(), scheduled_at.clone())) {
             return Err(ReminderOccurrenceError::DuplicateOccurrence);

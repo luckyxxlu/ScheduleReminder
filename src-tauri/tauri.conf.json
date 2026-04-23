@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ScheduleReminder",
+  "productName": "时间助手",
   "version": "1.0.1",
   "identifier": "com.schedulereminder.desktop",
   "build": {
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "ScheduleReminder",
+        "title": "时间助手",
         "width": 1280,
-        "height": 800,
+        "height": 960,
         "resizable": true
       }
     ]

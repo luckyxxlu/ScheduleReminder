@@ -169,6 +169,46 @@ pub fn save_action_log(pool: &DbPool, log: &ReminderActionLog) -> Result<(), Per
     Ok(())
 }
 
+pub fn delete_occurrence_and_logs(
+    pool: &DbPool,
+    occurrence_id: &str,
+) -> Result<(), PersistenceError> {
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|_| PersistenceError::StatementExecutionFailed)?;
+
+    transaction
+        .execute(
+            "DELETE FROM reminder_action_logs WHERE occurrence_id = ?1",
+            params![occurrence_id],
+        )
+        .map_err(|_| PersistenceError::StatementExecutionFailed)?;
+    transaction
+        .execute(
+            "DELETE FROM reminder_occurrences WHERE id = ?1",
+            params![occurrence_id],
+        )
+        .map_err(|_| PersistenceError::StatementExecutionFailed)?;
+
+    transaction
+        .commit()
+        .map_err(|_| PersistenceError::StatementExecutionFailed)
+}
+
+pub fn delete_template(pool: &DbPool, template_id: &str) -> Result<(), PersistenceError> {
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
+
+    connection
+        .execute(
+            "DELETE FROM reminder_templates WHERE id = ?1",
+            params![template_id],
+        )
+        .map_err(|_| PersistenceError::StatementExecutionFailed)?;
+
+    Ok(())
+}
+
 fn count_rows(connection: &rusqlite::Connection, table: &str) -> Result<i64, PersistenceError> {
     connection
         .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))

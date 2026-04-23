@@ -1,7 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use schedule_reminder::commands::app::{
-    create_calendar_event_command, create_reminder_template_command, default_app_settings, duplicate_reminder_template_command,
+    create_calendar_event_command, create_reminder_template_command, default_app_settings, delete_calendar_event_command,
+    duplicate_reminder_template_command,
     get_calendar_overview_command, get_settings_command, get_today_dashboard_command,
     grace_next_reminder_ten_minutes_command, greet, list_reminder_templates_command,
     mark_next_reminder_completed_command, seed_occurrences, seed_reminder_templates,
@@ -17,14 +18,58 @@ use schedule_reminder::db::migration::initialize_database;
 use schedule_reminder::db::persistence::{
     bootstrap_defaults, load_action_logs, load_occurrences, load_settings, load_template_repository,
 };
+use schedule_reminder::scheduler::runtime::start_scheduler;
 use schedule_reminder::state::app_runtime::AppRuntimeState;
 use schedule_reminder::state::database::DatabaseState;
 use schedule_reminder::state::reminder_templates::ReminderTemplateState;
-use tauri::Manager;
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Manager};
+
+const SHOW_WINDOW_MENU_ID: &str = "show-main-window";
+const QUIT_APP_MENU_ID: &str = "quit-app";
 
 #[tauri::command]
 fn greet_command(name: &str) -> String {
     greet(name)
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn build_system_tray(app: &AppHandle) -> tauri::Result<()> {
+    let show_item = MenuItemBuilder::with_id(SHOW_WINDOW_MENU_ID, "打开时间助手").build(app)?;
+    let quit_item = MenuItemBuilder::with_id(QUIT_APP_MENU_ID, "退出").build(app)?;
+    let menu = MenuBuilder::new(app).items(&[&show_item, &quit_item]).build()?;
+
+    TrayIconBuilder::new()
+        .icon(app.default_window_icon().expect("default window icon should exist").clone())
+        .tooltip("时间助手")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            SHOW_WINDOW_MENU_ID => show_main_window(app),
+            QUIT_APP_MENU_ID => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_main_window(&tray.app_handle())
+            }
+        })
+        .build(app)?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -171,6 +216,17 @@ fn create_calendar_event(
 }
 
 #[tauri::command]
+fn delete_calendar_event(
+    runtime: tauri::State<'_, AppRuntimeState>,
+    templates: tauri::State<'_, ReminderTemplateState>,
+    database: tauri::State<'_, DatabaseState>,
+    occurrence_id: String,
+    selected_date: String,
+) -> Result<CalendarOverviewData, ReminderTemplateCommandError> {
+    delete_calendar_event_command(runtime, templates, database, occurrence_id, selected_date)
+}
+
+#[tauri::command]
 fn get_settings(
     runtime: tauri::State<'_, AppRuntimeState>,
 ) -> Result<SettingsViewData, ReminderTemplateCommandError> {
@@ -210,10 +266,25 @@ fn main() {
     let action_logs = load_action_logs(&pool).expect("action logs should load from sqlite");
     let settings = load_settings(&pool).expect("settings should load from sqlite");
 
+    let database_state = DatabaseState::new(pool);
+    let template_state = ReminderTemplateState::new(template_repository);
+    let runtime_state = AppRuntimeState::new(occurrences, action_logs, settings);
+
     tauri::Builder::default()
-        .manage(DatabaseState::new(pool))
-        .manage(ReminderTemplateState::new(template_repository))
-        .manage(AppRuntimeState::new(occurrences, action_logs, settings))
+        .plugin(tauri_plugin_notification::init())
+        .manage(database_state.clone())
+        .manage(template_state.clone())
+        .manage(runtime_state.clone())
+        .setup(move |app| {
+            build_system_tray(&app.handle())?;
+            start_scheduler(
+                app.handle().clone(),
+                runtime_state.clone(),
+                template_state.clone(),
+                database_state.clone(),
+            );
+            Ok(())
+        })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let runtime = window.state::<AppRuntimeState>();
@@ -243,9 +314,10 @@ fn main() {
             skip_next_reminder,
             get_calendar_overview,
             create_calendar_event,
+            delete_calendar_event,
             get_settings,
             update_settings
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run ScheduleReminder")
+        .expect("failed to run 时间助手")
 }

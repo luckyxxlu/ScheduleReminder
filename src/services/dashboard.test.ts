@@ -95,4 +95,23 @@ describe('dashboard service', () => {
     })
     expect(result).toEqual({ selectedDate: '2026-04-22', entries: [] })
   })
+
+  it('creates calendar event for selected date with seconds', async () => {
+    mockedInvoke.mockResolvedValue({ selectedDate: '2026-04-22', entries: [] })
+
+    const result = await createCalendarEvent({
+      title: '秒级提醒',
+      message: '开始精确提醒',
+      selectedDate: '2026-04-22',
+      time: '14:30:45',
+    })
+
+    expect(mockedInvoke).toHaveBeenCalledWith('create_calendar_event', {
+      title: '秒级提醒',
+      message: '开始精确提醒',
+      selectedDate: '2026-04-22',
+      time: '14:30:45',
+    })
+    expect(result).toEqual({ selectedDate: '2026-04-22', entries: [] })
+  })
 })

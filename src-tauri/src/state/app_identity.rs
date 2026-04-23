@@ -1,3 +1,3 @@
 pub fn app_name() -> &'static str {
-    "ScheduleReminder"
+    "时间助手"
 }

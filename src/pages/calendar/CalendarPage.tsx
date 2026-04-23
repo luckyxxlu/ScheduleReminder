@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import { emit } from '@tauri-apps/api/event'
 
-import { createCalendarEvent, getCalendarOverview, type CalendarOverviewData } from '../../services/dashboard'
+import { todayDashboardRefreshEvent } from '../../app/events'
+import {
+  createCalendarEvent,
+  deleteCalendarEvent,
+  getCalendarOverview,
+  type CalendarOverviewData,
+} from '../../services/dashboard'
 import { extractErrorMessage } from '../../utils/errors'
 
 const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
@@ -19,7 +26,7 @@ export function CalendarPage() {
   const [overview, setOverview] = useState<CalendarOverviewData | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
   const [draftMessage, setDraftMessage] = useState('')
-  const [draftTime, setDraftTime] = useState('19:30')
+  const [draftTime, setDraftTime] = useState(() => getCurrentTimeWithSeconds())
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -63,8 +70,27 @@ export function CalendarPage() {
       setDraftMessage('')
       setErrorMessage(null)
       setSuccessMessage(`已添加 ${selectedDate} ${draftTime} 的提醒事件`)
+      await emit(todayDashboardRefreshEvent, { source: 'calendar' })
     } catch (error: unknown) {
       setErrorMessage(extractErrorMessage(error, '日历事件保存失败'))
+      setSuccessMessage(null)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleDeleteEvent(occurrenceId: string) {
+    setIsSubmitting(true)
+
+    try {
+      const nextOverview = await deleteCalendarEvent({ occurrenceId, selectedDate })
+      setOverview(nextOverview)
+      setVisibleMonthKey(nextOverview.monthKey)
+      setErrorMessage(null)
+      setSuccessMessage(`已删除 ${selectedDate} 的提醒事件`)
+      await emit(todayDashboardRefreshEvent, { source: 'calendar' })
+    } catch (error: unknown) {
+      setErrorMessage(extractErrorMessage(error, '日历事件删除失败'))
       setSuccessMessage(null)
     } finally {
       setIsSubmitting(false)
@@ -152,70 +178,90 @@ export function CalendarPage() {
         </article>
 
         <aside className="panel calendar-detail-panel">
-          <span className="panel-label">选中日期</span>
-          <strong className="panel-title">{selectedDate}</strong>
-          <p className="panel-text">像日历 App 一样查看当日安排，并直接补充新的提醒事件。</p>
-
-          <div className="calendar-event-list">
-            {(overview?.entries ?? []).length === 0 ? (
-              <div className="calendar-event-empty">
-                <strong>今天还没有安排</strong>
-                <p className="panel-text">为这一天添加一个提醒事件，稍后会出现在今天页与提醒管理中。</p>
-              </div>
-            ) : (
-              overview?.entries.map((entry) => (
-                <article className="calendar-event-card" key={entry.id}>
-                  <div>
-                    <strong>{entry.title}</strong>
-                    <p className="panel-text">{entry.time} · {entry.status}</p>
-                    <p className="panel-text">{entry.message}</p>
-                  </div>
-                </article>
-              ))
-            )}
+          <div>
+            <span className="panel-label">选定日期</span>
+            <strong className="panel-title">{selectedDate}</strong>
+            <p className="panel-text">你可以在 App 里查看这天的安排，或直接创建新的提醒事件。</p>
           </div>
 
-          <div className="calendar-action-log">
-            <span className="panel-label">当天最近操作</span>
-            {(overview?.recentActions ?? []).length === 0 ? (
-              <div className="calendar-event-empty">
-                <strong>暂无操作记录</strong>
-                <p className="panel-text">完成、延后或跳过提醒后，会在这里看到当天的处理轨迹。</p>
-              </div>
-            ) : (
-              overview?.recentActions.map((item) => (
-                <article className="calendar-event-card" key={item.id}>
-                  <div>
-                    <strong>{item.actionLabel}</strong>
-                    <p className="panel-text">{item.actionAt}</p>
-                  </div>
-                </article>
-              ))
-            )}
+          <div className="calendar-detail-scrollable">
+            <div className="calendar-event-list" style={{ marginTop: 0 }}>
+              {(overview?.entries ?? []).length === 0 ? (
+                <div className="calendar-event-empty">
+                  <strong>此天没有安排</strong>
+                  <p className="panel-text">为这一天安排一个提醒事件，稍后它将在这里显示。</p>
+                </div>
+              ) : (
+                overview?.entries.map((entry) => (
+                  <article className="calendar-event-card" key={entry.id}>
+                    <div>
+                      <strong>{entry.title}</strong>
+                      <p className="panel-text">{entry.time} · {entry.status}</p>
+                      <p className="panel-text">{entry.message}</p>
+                    </div>
+                    <div className="action-row" style={{ marginTop: 12 }}>
+                      <button
+                        aria-label={`删除 ${entry.title}`}
+                        className="secondary-button"
+                        disabled={isSubmitting}
+                        type="button"
+                        onClick={() => void handleDeleteEvent(entry.id)}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+
+            <div className="calendar-action-log" style={{ marginTop: 16 }}>
+              <span className="panel-label">当天的操作轨迹</span>
+              {(overview?.recentActions ?? []).length === 0 ? (
+                <div className="calendar-event-empty" style={{ marginTop: 16 }}>
+                  <strong>暂无操作记录</strong>
+                  <p className="panel-text">在这一天执行任何提醒后，你会在这里看到它的处理轨迹。</p>
+                </div>
+              ) : (
+                <div className="calendar-event-list" style={{ marginTop: 16 }}>
+                  {overview?.recentActions.map((item) => (
+                    <article className="calendar-event-card" key={item.id}>
+                      <div>
+                        <strong>{item.actionLabel}</strong>
+                        <p className="panel-text">{item.actionAt}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="calendar-create-box">
-            <span className="panel-label">添加当天事件</span>
-            <label className="calendar-input-group">
+            <span className="panel-label">添加到事件</span>
+            <label className="calendar-input-group" style={{ marginBottom: 12 }}>
               <span>事件标题</span>
               <input aria-label="事件标题" value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} />
             </label>
-            <label className="calendar-input-group">
-              <span>提醒内容</span>
-              <input aria-label="事件内容" value={draftMessage} onChange={(event) => setDraftMessage(event.target.value)} />
-            </label>
-            <label className="calendar-input-group">
-              <span>提醒时间</span>
-              <input
-                aria-label="提醒时间"
-                type="time"
-                value={draftTime}
-                onChange={(event) => setDraftTime(event.target.value)}
-              />
-            </label>
-             <button className="primary-button calendar-submit-button" disabled={isSubmitting} type="button" onClick={() => void handleCreateEvent()}>
-               {isSubmitting ? '正在保存...' : `添加到 ${selectedDate}`}
-             </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: 12 }}>
+              <label className="calendar-input-group" style={{ marginBottom: 0 }}>
+                <span>触发时间</span>
+                <input
+                  aria-label="触发时间"
+                  type="time"
+                  step="1"
+                  value={draftTime}
+                  onChange={(event) => setDraftTime(event.target.value)}
+                />
+              </label>
+              <label className="calendar-input-group" style={{ marginBottom: 0 }}>
+                <span>提醒内容</span>
+                <input aria-label="事件内容" value={draftMessage} onChange={(event) => setDraftMessage(event.target.value)} />
+              </label>
+            </div>
+            <button className="primary-button calendar-submit-button" disabled={isSubmitting} type="button" onClick={() => void handleCreateEvent()}>
+              {isSubmitting ? '正在保存...' : `添加到 ${selectedDate}`}
+            </button>
           </div>
         </aside>
       </div>
@@ -250,6 +296,12 @@ function buildCalendarCells(monthKey: string, monthEntries: CalendarOverviewData
   }
 
   return cells
+}
+
+function getCurrentTimeWithSeconds() {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 function normalizeWeekday(day: number) {
