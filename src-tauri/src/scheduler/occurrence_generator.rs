@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use chrono::{Datelike, Duration, NaiveDate};
+
 use crate::models::reminder_occurrence::{ReminderOccurrence, ReminderOccurrenceError};
 use crate::models::reminder_template::ReminderTemplate;
 
@@ -65,6 +67,8 @@ fn generate_dates(rule: &RepeatRule, start_date: &str, count: usize) -> Vec<Stri
 
             for week in 0..count.max(1) * 2 {
                 let week_offset = week * (*interval as usize) * 7;
+                let mut week_candidates = Vec::new();
+
                 for weekday in weekdays {
                     let mut day_offset = week_offset;
                     if *weekday as usize >= start_weekday {
@@ -75,12 +79,16 @@ fn generate_dates(rule: &RepeatRule, start_date: &str, count: usize) -> Vec<Stri
 
                     let candidate = day_from_number(base_day + day_offset);
                     if candidate >= start_date.to_string() {
-                        result.push(candidate);
+                        week_candidates.push(candidate);
                     }
+                }
 
-                    if result.len() == count {
-                        return result;
-                    }
+                week_candidates.sort();
+                result.extend(week_candidates);
+
+                if result.len() >= count {
+                    result.truncate(count);
+                    return result;
                 }
             }
 
@@ -90,34 +98,30 @@ fn generate_dates(rule: &RepeatRule, start_date: &str, count: usize) -> Vec<Stri
 }
 
 fn shift_day(start_date: &str, offset: usize) -> String {
-    day_from_number(day_number(start_date) + offset)
+    let parsed = parse_date(start_date);
+    (parsed + Duration::days(offset as i64))
+        .format("%Y-%m-%d")
+        .to_string()
 }
 
 fn day_number(date: &str) -> usize {
-    let parts: Vec<usize> = date
-        .split('-')
-        .map(|part| part.parse::<usize>().expect("date should be numeric"))
-        .collect();
-
-    let year = parts[0];
-    let month = parts[1];
-    let day = parts[2];
-
-    year * 372 + month * 31 + day
+    let parsed = parse_date(date);
+    parsed.num_days_from_ce() as usize
 }
 
 fn day_from_number(value: usize) -> String {
-    let year = value / 372;
-    let remainder = value % 372;
-    let month = remainder / 31;
-    let day = remainder % 31;
-
-    format!("{year:04}-{month:02}-{day:02}")
+    NaiveDate::from_num_days_from_ce_opt(value as i32)
+        .expect("day number should be valid")
+        .format("%Y-%m-%d")
+        .to_string()
 }
 
 fn weekday_number(date: &str) -> usize {
-    let value = day_number(date);
-    value % 7 + 1
+    parse_date(date).weekday().number_from_monday() as usize
+}
+
+fn parse_date(date: &str) -> NaiveDate {
+    NaiveDate::parse_from_str(date, "%Y-%m-%d").expect("date should match %Y-%m-%d")
 }
 
 #[cfg(test)]
@@ -177,6 +181,30 @@ mod tests {
     }
 
     #[test]
+    fn generates_daily_occurrences_across_month_boundary() {
+        let template = template_with_rule(r#"{"type":"daily","interval":1}"#);
+
+        let occurrences =
+            generate_occurrences(&template, "2026-04-30", "08:00", 3).expect("should generate");
+
+        assert_eq!(occurrences[0].scheduled_at, "2026-04-30 08:00:00");
+        assert_eq!(occurrences[1].scheduled_at, "2026-05-01 08:00:00");
+        assert_eq!(occurrences[2].scheduled_at, "2026-05-02 08:00:00");
+    }
+
+    #[test]
+    fn skips_weekend_days_for_workday_occurrences() {
+        let template = template_with_rule(r#"{"type":"workdays"}"#);
+
+        let occurrences =
+            generate_occurrences(&template, "2026-04-24", "08:00", 3).expect("should generate");
+
+        assert_eq!(occurrences[0].scheduled_at, "2026-04-24 08:00:00");
+        assert_eq!(occurrences[1].scheduled_at, "2026-04-27 08:00:00");
+        assert_eq!(occurrences[2].scheduled_at, "2026-04-28 08:00:00");
+    }
+
+    #[test]
     fn generates_weekly_occurrences() {
         let template = template_with_rule(r#"{"type":"weekly","interval":1,"weekdays":[1,3,5]}"#);
 
@@ -184,6 +212,19 @@ mod tests {
             generate_occurrences(&template, "2026-04-22", "08:00", 4).expect("should generate");
 
         assert_eq!(occurrences.len(), 4);
+    }
+
+    #[test]
+    fn generates_expected_weekly_dates_for_selected_weekdays() {
+        let template = template_with_rule(r#"{"type":"weekly","interval":1,"weekdays":[1,3,5]}"#);
+
+        let occurrences =
+            generate_occurrences(&template, "2026-04-22", "08:00", 4).expect("should generate");
+
+        assert_eq!(occurrences[0].scheduled_at, "2026-04-22 08:00:00");
+        assert_eq!(occurrences[1].scheduled_at, "2026-04-24 08:00:00");
+        assert_eq!(occurrences[2].scheduled_at, "2026-04-27 08:00:00");
+        assert_eq!(occurrences[3].scheduled_at, "2026-04-29 08:00:00");
     }
 
     #[test]

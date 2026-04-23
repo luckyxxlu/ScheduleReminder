@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { createCalendarEvent, getCalendarOverview, type CalendarOverviewData } from '../../services/dashboard'
 
 const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
-const initialSelectedDate = '2026-04-22'
 
 type CalendarCell = {
   date: string
@@ -13,32 +12,76 @@ type CalendarCell = {
 }
 
 export function CalendarPage() {
-  const [selectedDate, setSelectedDate] = useState(initialSelectedDate)
+  const today = currentDateKey()
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [visibleMonthKey, setVisibleMonthKey] = useState(monthKeyFromDate(today))
   const [overview, setOverview] = useState<CalendarOverviewData | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
+  const [draftMessage, setDraftMessage] = useState('')
   const [draftTime, setDraftTime] = useState('19:30')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    void getCalendarOverview(selectedDate).then(setOverview)
+    void getCalendarOverview(selectedDate)
+      .then((nextOverview) => {
+        setOverview(nextOverview)
+        setVisibleMonthKey(nextOverview.monthKey)
+        setErrorMessage(null)
+      })
+      .catch((error: unknown) => {
+        setErrorMessage(error instanceof Error ? error.message : '日历数据加载失败')
+      })
   }, [selectedDate])
 
   const calendarCells = useMemo(() => {
-    return buildCalendarCells(overview?.monthKey ?? monthKeyFromDate(selectedDate), overview?.monthEntries ?? [])
-  }, [overview?.monthEntries, overview?.monthKey, selectedDate])
+    return buildCalendarCells(visibleMonthKey, overview?.monthEntries ?? [])
+  }, [overview?.monthEntries, visibleMonthKey])
 
   async function handleCreateEvent() {
-    if (!draftTitle.trim()) {
+    if (!draftTitle.trim() || !draftMessage.trim()) {
+      setErrorMessage('请填写事件标题和提醒内容')
+      setSuccessMessage(null)
       return
     }
 
-    const nextOverview = await createCalendarEvent({
-      title: draftTitle,
-      selectedDate,
-      time: draftTime,
-    })
+    setIsSubmitting(true)
 
-    setOverview(nextOverview)
-    setDraftTitle('')
+    try {
+      const nextOverview = await createCalendarEvent({
+        title: draftTitle,
+        message: draftMessage,
+        selectedDate,
+        time: draftTime,
+      })
+
+      setOverview(nextOverview)
+      setVisibleMonthKey(nextOverview.monthKey)
+      setDraftTitle('')
+      setDraftMessage('')
+      setErrorMessage(null)
+      setSuccessMessage(`已添加 ${selectedDate} ${draftTime} 的提醒事件`)
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : '日历事件保存失败')
+      setSuccessMessage(null)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  function handleSelectDate(date: string) {
+    setSelectedDate(date)
+    setVisibleMonthKey(monthKeyFromDate(date))
+  }
+
+  function handleChangeMonth(diff: number) {
+    setVisibleMonthKey((current) => shiftMonthKey(current, diff))
+  }
+
+  function handleBackToToday() {
+    setSelectedDate(today)
+    setVisibleMonthKey(monthKeyFromDate(today))
   }
 
   return (
@@ -48,9 +91,17 @@ export function CalendarPage() {
           <h2>日历</h2>
           <p className="page-subtitle">完整查看提醒分布，并为任意一天快速补充事件。</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => setSelectedDate(initialSelectedDate)}>
+        <div className="action-row action-row-compact">
+          <button className="secondary-button" type="button" onClick={() => handleChangeMonth(-1)}>
+            上个月
+          </button>
+          <button className="secondary-button" type="button" onClick={handleBackToToday}>
           回到今天
-        </button>
+          </button>
+          <button className="secondary-button" type="button" onClick={() => handleChangeMonth(1)}>
+            下个月
+          </button>
+        </div>
       </header>
 
       <div className="calendar-layout">
@@ -58,10 +109,13 @@ export function CalendarPage() {
           <div className="calendar-topbar">
             <div>
               <span className="panel-label">本月提醒分布</span>
-              <strong className="panel-title">{formatMonthLabel(overview?.monthKey ?? monthKeyFromDate(selectedDate))}</strong>
+              <strong className="panel-title">{formatMonthLabel(visibleMonthKey)}</strong>
             </div>
             <span className="calendar-summary">本月已安排 {(overview?.monthEntries ?? []).reduce((sum, item) => sum + item.reminderCount, 0)} 条提醒</span>
           </div>
+
+          {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
+          {successMessage ? <p className="success-text">{successMessage}</p> : null}
 
           <div className="calendar-weekdays">
             {weekdayLabels.map((label) => (
@@ -74,7 +128,7 @@ export function CalendarPage() {
           <div className="calendar-month-grid">
             {calendarCells.map((cell) => {
               const isSelected = cell.date === selectedDate
-              const isToday = cell.date === initialSelectedDate
+              const isToday = cell.date === today
 
               return (
                 <button
@@ -84,7 +138,7 @@ export function CalendarPage() {
                   }${isToday ? ' calendar-month-cell-today' : ''}`}
                   aria-label={`选择 ${cell.date}`}
                   type="button"
-                  onClick={() => setSelectedDate(cell.date)}
+                  onClick={() => handleSelectDate(cell.date)}
                 >
                   <span className="calendar-month-day">{cell.day}</span>
                   <span className="calendar-month-meta">{cell.reminderCount > 0 ? `${cell.reminderCount} 条提醒` : '空闲'}</span>
@@ -111,6 +165,26 @@ export function CalendarPage() {
                   <div>
                     <strong>{entry.title}</strong>
                     <p className="panel-text">{entry.time} · {entry.status}</p>
+                    <p className="panel-text">{entry.message}</p>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="calendar-action-log">
+            <span className="panel-label">当天最近操作</span>
+            {(overview?.recentActions ?? []).length === 0 ? (
+              <div className="calendar-event-empty">
+                <strong>暂无操作记录</strong>
+                <p className="panel-text">完成、延后或跳过提醒后，会在这里看到当天的处理轨迹。</p>
+              </div>
+            ) : (
+              overview?.recentActions.map((item) => (
+                <article className="calendar-event-card" key={item.id}>
+                  <div>
+                    <strong>{item.actionLabel}</strong>
+                    <p className="panel-text">{item.actionAt}</p>
                   </div>
                 </article>
               ))
@@ -124,6 +198,10 @@ export function CalendarPage() {
               <input aria-label="事件标题" value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} />
             </label>
             <label className="calendar-input-group">
+              <span>提醒内容</span>
+              <input aria-label="事件内容" value={draftMessage} onChange={(event) => setDraftMessage(event.target.value)} />
+            </label>
+            <label className="calendar-input-group">
               <span>提醒时间</span>
               <input
                 aria-label="提醒时间"
@@ -132,9 +210,9 @@ export function CalendarPage() {
                 onChange={(event) => setDraftTime(event.target.value)}
               />
             </label>
-            <button className="primary-button calendar-submit-button" type="button" onClick={() => void handleCreateEvent()}>
-              添加到 {selectedDate}
-            </button>
+             <button className="primary-button calendar-submit-button" disabled={isSubmitting} type="button" onClick={() => void handleCreateEvent()}>
+               {isSubmitting ? '正在保存...' : `添加到 ${selectedDate}`}
+             </button>
           </div>
         </aside>
       </div>
@@ -191,4 +269,14 @@ function formatMonthLabel(monthKey: string) {
 
 function monthKeyFromDate(date: string) {
   return date.split('-').slice(0, 2).join('-')
+}
+
+function currentDateKey() {
+  return formatDate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate())
+}
+
+function shiftMonthKey(monthKey: string, diff: number) {
+  const [year, month] = monthKey.split('-').map(Number)
+  const next = new Date(year, month - 1 + diff, 1)
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`
 }

@@ -1,3 +1,5 @@
+use chrono::{Duration, NaiveDateTime};
+
 use crate::models::reminder_action_log::ReminderActionLog;
 use crate::models::reminder_occurrence::ReminderOccurrence;
 
@@ -73,17 +75,12 @@ pub fn skip_occurrence(
 }
 
 fn add_minutes(timestamp: &str, minutes: u32) -> String {
-    let (date, time) = timestamp.split_once(' ').expect("timestamp should contain date and time");
-    let mut parts = time.split(':');
-    let hour = parts.next().unwrap().parse::<u32>().unwrap();
-    let minute = parts.next().unwrap().parse::<u32>().unwrap();
-    let second = parts.next().unwrap();
+    let parsed = NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%d %H:%M:%S")
+        .expect("timestamp should match %Y-%m-%d %H:%M:%S");
 
-    let total_minutes = hour * 60 + minute + minutes;
-    let next_hour = (total_minutes / 60) % 24;
-    let next_minute = total_minutes % 60;
-
-    format!("{date} {next_hour:02}:{next_minute:02}:{second}")
+    (parsed + Duration::minutes(minutes as i64))
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string()
 }
 
 #[cfg(test)]
@@ -167,5 +164,15 @@ mod tests {
             .expect_err("complete outside grace should fail");
 
         assert_eq!(error, GraceError::NotInGrace);
+    }
+
+    #[test]
+    fn snooze_crosses_midnight_into_next_day() {
+        let mut occurrence = grace_occurrence();
+
+        snooze_occurrence(&mut occurrence, "2026-04-30 23:55:00", 10, "grace_10_minutes")
+            .expect("cross-day snooze should succeed");
+
+        assert_eq!(occurrence.snoozed_until.as_deref(), Some("2026-05-01 00:05:00"));
     }
 }

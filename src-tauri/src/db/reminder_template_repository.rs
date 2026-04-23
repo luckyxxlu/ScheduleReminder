@@ -12,6 +12,22 @@ pub struct InMemoryReminderTemplateRepository {
 }
 
 impl InMemoryReminderTemplateRepository {
+    pub fn from_items(items: Vec<ReminderTemplate>) -> Self {
+        let mut repository = Self::default();
+
+        for item in items {
+            if let Some(id) = item.id.strip_prefix("tpl_") {
+                if let Ok(parsed) = id.parse::<u64>() {
+                    repository.next_id = repository.next_id.max(parsed);
+                }
+            }
+
+            repository.items.insert(item.id.clone(), item);
+        }
+
+        repository
+    }
+
     pub fn list(&self) -> Vec<ReminderTemplate> {
         let mut items = self.items.values().cloned().collect::<Vec<_>>();
         items.sort_by(|left, right| left.id.cmp(&right.id));

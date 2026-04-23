@@ -161,6 +161,35 @@ mod tests {
     }
 
     #[test]
+    fn keeps_grace_occurrence_active_at_exact_deadline() {
+        let mut occurrence = pending_occurrence();
+        occurrence.status = "grace".to_string();
+        let mut occurrences = vec![occurrence];
+
+        let result = scan_occurrences("2026-04-22 08:10:00", &mut occurrences);
+
+        assert_eq!(occurrences[0].status, "grace");
+        assert!(result.missed_ids.is_empty());
+        assert!(result.logs.is_empty());
+    }
+
+    #[test]
+    fn uses_snoozed_until_as_effective_grace_deadline() {
+        let mut occurrence = pending_occurrence();
+        occurrence.status = "grace".to_string();
+        occurrence.snoozed_until = Some("2026-04-22 08:20:00".to_string());
+        let mut occurrences = vec![occurrence];
+
+        let early = scan_occurrences("2026-04-22 08:15:00", &mut occurrences);
+        assert_eq!(occurrences[0].status, "grace");
+        assert!(early.missed_ids.is_empty());
+
+        let late = scan_occurrences("2026-04-22 08:20:01", &mut occurrences);
+        assert_eq!(occurrences[0].status, "missed");
+        assert_eq!(late.missed_ids, vec!["occ_1".to_string()]);
+    }
+
+    #[test]
     fn resync_generates_missing_occurrences_for_enabled_templates() {
         let template = enabled_template();
         let existing = vec![ReminderOccurrence {
@@ -180,5 +209,15 @@ mod tests {
             result.resynced_occurrences[0].scheduled_at,
             "2026-04-23 08:00:00"
         );
+    }
+
+    #[test]
+    fn resync_ignores_disabled_templates() {
+        let mut template = enabled_template();
+        template.enabled = false;
+
+        let result = resync_occurrences(&[template], &[], "2026-04-22", "08:00", 3);
+
+        assert!(result.resynced_occurrences.is_empty());
     }
 }

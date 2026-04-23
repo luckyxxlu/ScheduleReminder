@@ -4,22 +4,49 @@ import { App } from './App'
 
 vi.mock('../services/dashboard', () => ({
   getTodayDashboard: vi.fn().mockResolvedValue({
+    activeReminderId: 'occ_2',
     nextReminderTitle: '准备休息',
     nextReminderTime: '22:30',
-    nextReminderMessage: '宽容 15 分钟，支持稍后提醒与跳过今天。',
+    nextReminderMessage: '准备休息，放下屏幕',
+    nextReminderStatus: '宽容中',
+    nextReminderNotificationState: '这条提醒已进入宽容时间，对应 Windows 通知已触发。',
+    nextReminderGraceDeadline: '22:45',
+    nextReminderAvailableActions: ['complete', 'grace_10_minutes', 'snooze', 'skip'],
     highlightedStatus: '宽容中',
+    todayTimeline: [
+      {
+        id: 'occ_2',
+        time: '22:30',
+        title: '准备休息',
+        message: '准备休息，放下屏幕',
+        status: '宽容中',
+        isActive: true,
+      },
+    ],
+    recentActions: [],
   }),
   markNextReminderCompleted: vi.fn().mockResolvedValue({
+    activeReminderId: 'occ_2',
     nextReminderTitle: '准备休息',
     nextReminderTime: '22:30',
-    nextReminderMessage: '宽容 15 分钟，支持稍后提醒与跳过今天。',
+    nextReminderMessage: '准备休息，放下屏幕',
+    nextReminderStatus: '已完成',
+    nextReminderNotificationState: '这条提醒已进入宽容时间，对应 Windows 通知已触发。',
+    nextReminderGraceDeadline: '22:45',
+    nextReminderAvailableActions: [],
     highlightedStatus: '已完成',
+    todayTimeline: [],
+    recentActions: [],
   }),
+  graceNextReminderTenMinutes: vi.fn(),
+  snoozeNextReminder: vi.fn(),
+  skipNextReminder: vi.fn(),
   getCalendarOverview: vi.fn().mockResolvedValue({
     monthKey: '2026-04',
     monthEntries: [{ date: '2026-04-22', reminderCount: 1 }],
     selectedDate: '2026-04-22',
-    entries: [{ id: 'occ_1', date: '2026-04-22 08:00:00', time: '08:00', title: '喝水提醒', status: '宽容中' }],
+    recentActions: [],
+    entries: [{ id: 'occ_1', date: '2026-04-22 08:00:00', time: '08:00', title: '喝水提醒', message: '喝水时间到了', status: '宽容中' }],
   }),
   createCalendarEvent: vi.fn(),
 }))
@@ -40,6 +67,7 @@ vi.mock('../services/reminderTemplates', () => ({
   listReminderTemplates: vi.fn().mockResolvedValue([]),
   toggleReminderTemplate: vi.fn(),
   duplicateReminderTemplate: vi.fn(),
+  createReminderTemplate: vi.fn(),
 }))
 
 describe('App', () => {

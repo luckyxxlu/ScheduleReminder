@@ -6,48 +6,54 @@ export function SettingsPage() {
   const [graceMinutes, setGraceMinutes] = useState('10')
   const [startup, setStartup] = useState(false)
   const [closeToTrayOnClose, setCloseToTrayOnClose] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    void getSettings().then((settings) => {
-      setGraceMinutes(String(settings.defaultGraceMinutes))
-      setStartup(settings.startupWithWindows)
-      setCloseToTrayOnClose(settings.closeToTrayOnClose)
-    })
+    getSettings()
+      .then((settings) => {
+        setGraceMinutes(String(settings.defaultGraceMinutes))
+        setStartup(settings.startupWithWindows)
+        setCloseToTrayOnClose(settings.closeToTrayOnClose)
+        setErrorMessage(null)
+      })
+      .catch((error: unknown) => {
+        setErrorMessage(error instanceof Error ? error.message : '设置加载失败')
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
   }, [])
 
-  async function handleGraceMinutesChange(value: string) {
-    setGraceMinutes(value)
-    const parsed = Number(value)
-    if (Number.isNaN(parsed)) {
+  async function handleSave() {
+    const parsed = Number(graceMinutes)
+    if (Number.isNaN(parsed) || parsed < 0) {
+      setErrorMessage('默认宽容时间必须是大于等于 0 的数字')
+      setSuccessMessage(null)
       return
     }
 
-    const next = await updateSettings({
-      defaultGraceMinutes: parsed,
-      startupWithWindows: startup,
-      closeToTrayOnClose,
-    })
-    setGraceMinutes(String(next.defaultGraceMinutes))
-  }
+    setIsSaving(true)
 
-  async function handleStartupChange(checked: boolean) {
-    setStartup(checked)
-    const next = await updateSettings({
-      defaultGraceMinutes: Number(graceMinutes),
-      startupWithWindows: checked,
-      closeToTrayOnClose,
-    })
-    setStartup(next.startupWithWindows)
-  }
-
-  async function handleCloseBehaviorChange(checked: boolean) {
-    setCloseToTrayOnClose(checked)
-    const next = await updateSettings({
-      defaultGraceMinutes: Number(graceMinutes),
-      startupWithWindows: startup,
-      closeToTrayOnClose: checked,
-    })
-    setCloseToTrayOnClose(next.closeToTrayOnClose)
+    try {
+      const next = await updateSettings({
+        defaultGraceMinutes: parsed,
+        startupWithWindows: startup,
+        closeToTrayOnClose,
+      })
+      setGraceMinutes(String(next.defaultGraceMinutes))
+      setStartup(next.startupWithWindows)
+      setCloseToTrayOnClose(next.closeToTrayOnClose)
+      setErrorMessage(null)
+      setSuccessMessage('设置已保存')
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : '设置保存失败')
+      setSuccessMessage(null)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -62,6 +68,9 @@ export function SettingsPage() {
       <article className="panel">
         <span className="panel-label">应用偏好</span>
         <strong className="panel-title">默认宽容时间与系统行为</strong>
+        {isLoading ? <p className="panel-text">正在加载设置...</p> : null}
+        {successMessage ? <p className="success-text">{successMessage}</p> : null}
+        {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
         <div className="settings-group">
           <label className="settings-field">
             <span>默认宽容时间</span>
@@ -69,7 +78,7 @@ export function SettingsPage() {
               aria-label="默认宽容时间"
               type="number"
               value={graceMinutes}
-              onChange={(event) => void handleGraceMinutesChange(event.target.value)}
+              onChange={(event) => setGraceMinutes(event.target.value)}
             />
           </label>
 
@@ -83,7 +92,7 @@ export function SettingsPage() {
               aria-label="开机自启"
               type="checkbox"
               checked={startup}
-              onChange={(event) => void handleStartupChange(event.target.checked)}
+              onChange={(event) => setStartup(event.target.checked)}
             />
             <span>开机自启</span>
           </label>
@@ -93,12 +102,17 @@ export function SettingsPage() {
               aria-label="关闭时后台运行"
               type="checkbox"
               checked={closeToTrayOnClose}
-              onChange={(event) => void handleCloseBehaviorChange(event.target.checked)}
+              onChange={(event) => setCloseToTrayOnClose(event.target.checked)}
             />
             <span>关闭窗口时继续在后台运行</span>
           </label>
 
           <p className="panel-text">开启后，点击窗口右上角关闭按钮不会退出应用，而是隐藏到后台继续运行。</p>
+          <div className="action-row">
+            <button className="primary-button" disabled={isLoading || isSaving} type="button" onClick={() => void handleSave()}>
+              {isSaving ? '正在保存...' : '保存设置'}
+            </button>
+          </div>
         </div>
       </article>
     </section>

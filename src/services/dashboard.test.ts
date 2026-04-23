@@ -1,6 +1,14 @@
 import { invoke } from '@tauri-apps/api/core'
 
-import { createCalendarEvent, getCalendarOverview, getTodayDashboard, markNextReminderCompleted } from './dashboard'
+import {
+  createCalendarEvent,
+  getCalendarOverview,
+  getTodayDashboard,
+  graceNextReminderTenMinutes,
+  markNextReminderCompleted,
+  skipNextReminder,
+  snoozeNextReminder,
+} from './dashboard'
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -31,6 +39,33 @@ describe('dashboard service', () => {
     expect(result).toEqual({ highlightedStatus: '已完成' })
   })
 
+  it('applies fixed ten minute grace', async () => {
+    mockedInvoke.mockResolvedValue({ highlightedStatus: '宽容中' })
+
+    const result = await graceNextReminderTenMinutes()
+
+    expect(mockedInvoke).toHaveBeenCalledWith('grace_next_reminder_ten_minutes')
+    expect(result).toEqual({ highlightedStatus: '宽容中' })
+  })
+
+  it('snoozes grace reminder with selected minutes', async () => {
+    mockedInvoke.mockResolvedValue({ highlightedStatus: '宽容中' })
+
+    const result = await snoozeNextReminder(15)
+
+    expect(mockedInvoke).toHaveBeenCalledWith('snooze_next_reminder', { minutes: 15 })
+    expect(result).toEqual({ highlightedStatus: '宽容中' })
+  })
+
+  it('skips grace reminder for today', async () => {
+    mockedInvoke.mockResolvedValue({ highlightedStatus: '已跳过' })
+
+    const result = await skipNextReminder()
+
+    expect(mockedInvoke).toHaveBeenCalledWith('skip_next_reminder')
+    expect(result).toEqual({ highlightedStatus: '已跳过' })
+  })
+
   it('loads calendar overview for selected date', async () => {
     mockedInvoke.mockResolvedValue({ selectedDate: '2026-04-22', entries: [] })
 
@@ -47,12 +82,14 @@ describe('dashboard service', () => {
 
     const result = await createCalendarEvent({
       title: '深度工作',
+      message: '开始今天的专注时段',
       selectedDate: '2026-04-22',
       time: '14:30',
     })
 
     expect(mockedInvoke).toHaveBeenCalledWith('create_calendar_event', {
       title: '深度工作',
+      message: '开始今天的专注时段',
       selected_date: '2026-04-22',
       time: '14:30',
     })
