@@ -115,4 +115,30 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('默认宽容时间必须是大于等于 0 的数字')).toBeInTheDocument()
     expect(mockedUpdateSettings).not.toHaveBeenCalled()
   })
+
+  it('shows load failure when settings request fails', async () => {
+    mockedGetSettings.mockRejectedValueOnce(new Error('设置加载失败'))
+
+    render(<SettingsPage />)
+
+    expect(await screen.findByText('设置加载失败')).toBeInTheDocument()
+  })
+
+  it('shows fallback load failure for non-error rejection', async () => {
+    mockedGetSettings.mockRejectedValueOnce('bad')
+
+    render(<SettingsPage />)
+
+    expect(await screen.findByText('设置加载失败')).toBeInTheDocument()
+  })
+
+  it('shows fallback save failure for non-error rejection', async () => {
+    mockedUpdateSettings.mockRejectedValueOnce('bad')
+
+    render(<SettingsPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '保存设置' }))
+
+    expect(await screen.findByText('设置保存失败')).toBeInTheDocument()
+  })
 })

@@ -10,7 +10,7 @@
 - 桌面容器：Tauri
 - 前端：React + TypeScript
 - 后端：Rust
-- 数据库：MySQL
+- 数据库：SQLite
 
 ### 2.2 前端约束
 - 前端统一使用 TypeScript。
@@ -22,8 +22,8 @@
 应用采用前后端分层结构：
 
 - React + TypeScript 负责界面渲染、页面路由、表单交互和状态展示。
-- Rust + Tauri 负责提醒调度、MySQL 持久化、托盘、系统通知和系统级能力。
-- MySQL 保存提醒模板、提醒实例、操作日志和应用设置。
+- Rust + Tauri 负责提醒调度、SQLite 持久化、托盘、系统通知和系统级能力。
+- SQLite 保存提醒模板、提醒实例、操作日志和应用设置。
 
 推荐数据流：
 
@@ -200,7 +200,7 @@ export interface AppSettings {
 对外暴露给 Tauri 前端调用的命令入口。
 
 ### `db/`
-负责 MySQL 连接初始化、迁移执行、Repository 封装。
+负责 SQLite 连接初始化、迁移执行、Repository 封装。
 
 ### `models/`
 维护核心实体和数据库映射结构。
@@ -235,13 +235,12 @@ pub struct AppState {
 
 ## 7. 数据库设计
 
-## 7.0 MySQL 使用约束
+## 7.0 SQLite 使用约束
 
-- 建议使用 MySQL 8.0 及以上版本。
-- 后端通过连接池访问 MySQL。
-- 应用启动时必须执行数据库连通性检查。
+- 使用本地 SQLite 数据库文件作为桌面端持久化。
+- 应用启动时必须执行数据库文件可访问性检查。
 - migration 由后端启动流程统一执行。
-- 开发、测试、生产环境使用独立数据库实例或独立 schema。
+- 开发与测试应使用独立数据库文件，避免互相污染。
 
 ## 7.1 表结构
 
@@ -249,37 +248,37 @@ pub struct AppState {
 
 ```sql
 CREATE TABLE reminder_templates (
-  id VARCHAR(64) PRIMARY KEY NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  category VARCHAR(64) NULL,
-  event_type VARCHAR(32) NOT NULL,
-  event_payload_json JSON NOT NULL,
-  repeat_rule_json JSON NOT NULL,
+  id TEXT PRIMARY KEY NOT NULL,
+  title TEXT NOT NULL,
+  category TEXT NULL,
+  event_type TEXT NOT NULL,
+  event_payload_json TEXT NOT NULL,
+  repeat_rule_json TEXT NOT NULL,
   default_grace_minutes INTEGER NOT NULL,
-  notify_sound TINYINT(1) NOT NULL DEFAULT 1,
+  notify_sound INTEGER NOT NULL DEFAULT 1,
   note TEXT NULL,
-  enabled TINYINT(1) NOT NULL DEFAULT 1,
-  created_at DATETIME(3) NOT NULL,
-  updated_at DATETIME(3) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 ```
 
 ### `reminder_occurrences`
 
 ```sql
 CREATE TABLE reminder_occurrences (
-  id VARCHAR(64) PRIMARY KEY NOT NULL,
-  template_id VARCHAR(64) NOT NULL,
-  scheduled_at DATETIME(3) NOT NULL,
-  grace_deadline_at DATETIME(3) NOT NULL,
-  snoozed_until DATETIME(3) NULL,
-  status VARCHAR(32) NOT NULL,
-  handled_at DATETIME(3) NULL,
-  created_at DATETIME(3) NOT NULL,
-  updated_at DATETIME(3) NOT NULL,
+  id TEXT PRIMARY KEY NOT NULL,
+  template_id TEXT NOT NULL,
+  scheduled_at TEXT NOT NULL,
+  grace_deadline_at TEXT NOT NULL,
+  snoozed_until TEXT NULL,
+  status TEXT NOT NULL,
+  handled_at TEXT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
   FOREIGN KEY(template_id) REFERENCES reminder_templates(id),
   UNIQUE(template_id, scheduled_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+);
 
 CREATE INDEX idx_occurrences_template_id ON reminder_occurrences(template_id);
 CREATE INDEX idx_occurrences_scheduled_at ON reminder_occurrences(scheduled_at);
@@ -290,13 +289,13 @@ CREATE INDEX idx_occurrences_status ON reminder_occurrences(status);
 
 ```sql
 CREATE TABLE reminder_action_logs (
-  id VARCHAR(64) PRIMARY KEY NOT NULL,
-  occurrence_id VARCHAR(64) NOT NULL,
-  action VARCHAR(64) NOT NULL,
-  action_at DATETIME(3) NOT NULL,
-  payload_json JSON NULL,
+  id TEXT PRIMARY KEY NOT NULL,
+  occurrence_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  action_at TEXT NOT NULL,
+  payload_json TEXT NULL,
   FOREIGN KEY(occurrence_id) REFERENCES reminder_occurrences(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+);
 
 CREATE INDEX idx_action_logs_occurrence_id ON reminder_action_logs(occurrence_id);
 ```
@@ -307,21 +306,21 @@ CREATE INDEX idx_action_logs_occurrence_id ON reminder_action_logs(occurrence_id
 CREATE TABLE app_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   default_grace_minutes INTEGER NOT NULL,
-  startup_with_windows TINYINT(1) NOT NULL DEFAULT 0,
-  tray_enabled TINYINT(1) NOT NULL DEFAULT 1,
-  theme VARCHAR(32) NOT NULL DEFAULT 'system',
-  quiet_hours_enabled TINYINT(1) NOT NULL DEFAULT 0,
-  quiet_hours_start VARCHAR(8) NULL,
-  quiet_hours_end VARCHAR(8) NULL,
-  updated_at DATETIME(3) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  startup_with_windows INTEGER NOT NULL DEFAULT 0,
+  tray_enabled INTEGER NOT NULL DEFAULT 1,
+  theme TEXT NOT NULL DEFAULT 'system',
+  quiet_hours_enabled INTEGER NOT NULL DEFAULT 0,
+  quiet_hours_start TEXT NULL,
+  quiet_hours_end TEXT NULL,
+  updated_at TEXT NOT NULL
+);
 ```
 
-由于 MySQL 不支持 `CHECK (id = 1)` 作为可靠单例约束策略，建议应用层固定使用 `id = 1` 进行 upsert。
+应用层固定使用 `id = 1` 进行 upsert，保持设置记录单例。
 
 ## 7.2 重复规则存储
 
-为避免首版数据库设计过重，重复规则建议先以 MySQL JSON 保存到 `repeat_rule_json`。
+为避免首版数据库设计过重，重复规则建议先以 JSON 文本保存到 `repeat_rule_json`。
 
 建议格式：
 
@@ -568,9 +567,9 @@ CREATE TABLE app_settings (
 - 稍后提醒与 `snoozed_until` 计算测试
 - `notification_dispatched` 日志写入测试
 - 系统动作事件测试，例如 `shutdown` 提醒确认、取消和延后测试
-- MySQL migration 执行测试
-- MySQL 连接失败与重试/报错测试
-- MySQL 唯一约束和事务回滚测试
+- SQLite migration 执行测试
+- SQLite 文件初始化失败测试
+- SQLite 唯一约束与写入失败测试
 
 后端测试覆盖要求：
 - 覆盖正常路径
@@ -618,5 +617,5 @@ CREATE TABLE app_settings (
 - 产品聚焦提醒，不做复杂待办。
 - 前端统一使用 TypeScript，不使用 JavaScript。
 - 提醒调度统一在 Rust 侧实现。
-- MySQL 作为持久化方案。
+- SQLite 作为持久化方案。
 - 首版重复规则保持简单，避免过度设计。

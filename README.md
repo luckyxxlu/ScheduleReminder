@@ -5,7 +5,7 @@
 ## 当前可用能力
 
 - 今天 / 日历 / 提醒 / 设置 四个页面骨架
-- MySQL 初始化与 migration
+- SQLite 初始化与 migration
 - 提醒模板 CRUD 领域逻辑
 - 重复规则解析
 - occurrence 生成
@@ -15,18 +15,18 @@
 
 ## 运行方式
 
-默认情况下，应用会尝试使用以下 MySQL 连接：
+默认情况下，应用会在当前工作目录使用以下 SQLite 文件：
 
 ```bash
-mysql://root:root@127.0.0.1:3306/schedule_reminder
+sqlite://schedule-reminder.db
 ```
 
-应用启动时会自动创建 `schedule_reminder` 数据库。
+应用启动时会自动创建数据库文件并执行 migration。
 
 如果你想手动指定连接字符串：
 
 ```bash
-set DATABASE_URL=mysql://<user>:<password>@127.0.0.1:3306/<database>
+set DATABASE_URL=sqlite://data/schedule-reminder.db
 ```
 
 然后启动桌面应用：

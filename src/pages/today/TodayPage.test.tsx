@@ -33,6 +33,18 @@ const mockedMarkNextReminderCompleted = vi.mocked(markNextReminderCompleted)
 const mockedSkipNextReminder = vi.mocked(skipNextReminder)
 const mockedSnoozeNextReminder = vi.mocked(snoozeNextReminder)
 
+function createDeferredPromise<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+
+  const promise = new Promise<T>((innerResolve, innerReject) => {
+    resolve = innerResolve
+    reject = innerReject
+  })
+
+  return { promise, resolve, reject }
+}
+
 describe('TodayPage', () => {
   beforeEach(() => {
     mockedGetTodayDashboard.mockResolvedValue({
@@ -169,6 +181,13 @@ describe('TodayPage', () => {
     expect(screen.getByRole('button', { name: '跳过今天' })).toBeInTheDocument()
   })
 
+  it('navigates to reminders from quick create action', async () => {
+    render(<TodayPage />)
+
+    await screen.findByText('22:30 准备休息')
+    fireEvent.click(screen.getByRole('button', { name: '快速新建' }))
+  })
+
   it('updates status when marking today reminder as completed', async () => {
     render(<TodayPage />)
 
@@ -236,5 +255,136 @@ describe('TodayPage', () => {
     expect(screen.getByText('下一条提醒尚未触发通知')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '完成' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '跳过今天' })).toBeDisabled()
+  })
+
+  it('shows page load failure clearly', async () => {
+    mockedGetTodayDashboard.mockRejectedValueOnce(new Error('今天页加载失败'))
+
+    render(<TodayPage />)
+
+    expect(await screen.findByText('今天页加载失败')).toBeInTheDocument()
+  })
+
+  it('shows fallback load failure for non-error rejection', async () => {
+    mockedGetTodayDashboard.mockRejectedValueOnce('bad')
+
+    render(<TodayPage />)
+
+    expect(await screen.findByText('今天页加载失败')).toBeInTheDocument()
+  })
+
+  it('shows action failure when grace operation fails', async () => {
+    mockedGraceNextReminderTenMinutes.mockRejectedValueOnce(new Error('提醒处理失败'))
+
+    render(<TodayPage />)
+
+    await screen.findByText('22:30 准备休息')
+    fireEvent.click(screen.getByRole('button', { name: '宽容 10 分钟' }))
+
+    expect(await screen.findByText('提醒处理失败')).toBeInTheDocument()
+  })
+
+  it('shows fallback action failure for non-error rejection', async () => {
+    mockedSkipNextReminder.mockRejectedValueOnce('bad')
+
+    render(<TodayPage />)
+
+    await screen.findByText('22:30 准备休息')
+    fireEvent.click(screen.getByRole('button', { name: '跳过今天' }))
+
+    expect(await screen.findByText('提醒处理失败')).toBeInTheDocument()
+  })
+
+  it('hides grace deadline when backend does not provide one', async () => {
+    mockedGetTodayDashboard.mockResolvedValueOnce({
+      activeReminderId: 'occ_4',
+      nextReminderTitle: '轻提醒',
+      nextReminderTime: '10:00',
+      nextReminderMessage: '只是简单提示一下',
+      nextReminderStatus: '待处理',
+      nextReminderNotificationState: '到达提醒时间后会发送 Windows 通知。',
+      nextReminderGraceDeadline: null,
+      nextReminderAvailableActions: [],
+      highlightedStatus: '待处理',
+      todayTimeline: [],
+      recentActions: [],
+    })
+
+    render(<TodayPage />)
+
+    await screen.findByText('10:00 轻提醒')
+    expect(screen.queryByText(/宽容截止：/)).not.toBeInTheDocument()
+    expect(screen.getByText('今天还没有提醒时间线。')).toBeInTheDocument()
+  })
+
+  it('renders inactive timeline items without active style', async () => {
+    mockedGetTodayDashboard.mockResolvedValueOnce({
+      activeReminderId: 'occ_6',
+      nextReminderTitle: '收尾复盘',
+      nextReminderTime: '18:00',
+      nextReminderMessage: '整理今天完成情况',
+      nextReminderStatus: '已完成',
+      nextReminderNotificationState: '今日提醒已经处理完成。',
+      nextReminderGraceDeadline: null,
+      nextReminderAvailableActions: [],
+      highlightedStatus: '已完成',
+      todayTimeline: [
+        {
+          id: 'occ_6',
+          time: '18:00',
+          title: '收尾复盘',
+          message: '整理今天完成情况',
+          status: '已完成',
+          isActive: false,
+        },
+      ],
+      recentActions: [],
+    })
+
+    render(<TodayPage />)
+
+    const timelineTitle = await screen.findByText('收尾复盘')
+    expect(timelineTitle.closest('.timeline-item')).not.toHaveClass('timeline-item-active')
+    expect(screen.getByText('今天已经开始推进了')).toBeInTheDocument()
+  })
+
+  it('ignores resolved dashboard request after unmount', async () => {
+    const deferred = createDeferredPromise<Awaited<ReturnType<typeof getTodayDashboard>>>()
+    mockedGetTodayDashboard.mockReturnValueOnce(deferred.promise)
+
+    const { unmount } = render(<TodayPage />)
+    unmount()
+
+    deferred.resolve({
+      activeReminderId: 'occ_5',
+      nextReminderTitle: '晚间收尾',
+      nextReminderTime: '21:30',
+      nextReminderMessage: '整理今天的记录',
+      nextReminderStatus: '待处理',
+      nextReminderNotificationState: '到达提醒时间后会发送 Windows 通知。',
+      nextReminderGraceDeadline: null,
+      nextReminderAvailableActions: [],
+      highlightedStatus: '待处理',
+      todayTimeline: [],
+      recentActions: [],
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText('晚间收尾')).not.toBeInTheDocument()
+    })
+  })
+
+  it('ignores rejected dashboard request after unmount', async () => {
+    const deferred = createDeferredPromise<Awaited<ReturnType<typeof getTodayDashboard>>>()
+    mockedGetTodayDashboard.mockReturnValueOnce(deferred.promise)
+
+    const { unmount } = render(<TodayPage />)
+    unmount()
+
+    deferred.reject(new Error('不应显示'))
+
+    await waitFor(() => {
+      expect(screen.queryByText('不应显示')).not.toBeInTheDocument()
+    })
   })
 })

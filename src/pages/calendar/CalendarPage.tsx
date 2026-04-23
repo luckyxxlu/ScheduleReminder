@@ -76,7 +76,9 @@ export function CalendarPage() {
   }
 
   function handleChangeMonth(diff: number) {
-    setVisibleMonthKey((current) => shiftMonthKey(current, diff))
+    const nextMonthKey = shiftMonthKey(visibleMonthKey, diff)
+    setVisibleMonthKey(nextMonthKey)
+    setSelectedDate(`${nextMonthKey}-01`)
   }
 
   function handleBackToToday() {

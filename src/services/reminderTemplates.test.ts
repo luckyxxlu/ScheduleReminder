@@ -98,4 +98,48 @@ describe('reminderTemplates service', () => {
     })
     expect(result).toEqual({ id: 'tpl_1', title: '补水提醒' })
   })
+
+  it('maps undefined optional fields to null when creating template', async () => {
+    mockedInvoke.mockResolvedValue({ id: 'tpl_4', title: '晨间计划' })
+
+    await createReminderTemplate({
+      title: '晨间计划',
+      message: '开始今天的安排',
+      repeatRuleJson: '{"type":"none","time":"08:00"}',
+      defaultGraceMinutes: 5,
+    })
+
+    expect(mockedInvoke).toHaveBeenCalledWith('create_reminder_template', {
+      title: '晨间计划',
+      message: '开始今天的安排',
+      category: null,
+      repeat_rule_json: '{"type":"none","time":"08:00"}',
+      default_grace_minutes: 5,
+      note: null,
+    })
+  })
+
+  it('maps undefined optional fields to null when updating template', async () => {
+    mockedInvoke.mockResolvedValue({ id: 'tpl_1', title: '晨间计划' })
+
+    await updateReminderTemplate({
+      id: 'tpl_1',
+      title: '晨间计划',
+      message: '开始今天的安排',
+      repeatRuleJson: '{"type":"none","time":"08:00"}',
+      defaultGraceMinutes: 5,
+      enabled: false,
+    })
+
+    expect(mockedInvoke).toHaveBeenCalledWith('update_reminder_template', {
+      id: 'tpl_1',
+      title: '晨间计划',
+      message: '开始今天的安排',
+      category: null,
+      repeat_rule_json: '{"type":"none","time":"08:00"}',
+      default_grace_minutes: 5,
+      note: null,
+      enabled: false,
+    })
+  })
 })

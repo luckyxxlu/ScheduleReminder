@@ -261,3 +261,61 @@
 进入每个需求时，统一采用：
 
 `测试用例 -> 开发 -> 测试 -> 修复 -> 提交`
+
+## 9. Git 提交与推送注意事项
+
+### 9.1 提交前提
+- 只有在相关测试通过后，才允许执行提交。
+- 提交后默认继续推送到远端，不把“提交”和“推送”拆成两次单独动作。
+- 若提交时 Git 提示缺少 `user.name` / `user.email`，优先使用临时环境变量完成本次提交，不修改全局 Git 配置。
+
+PowerShell 示例：
+
+```powershell
+$env:GIT_AUTHOR_NAME='你的名字'
+$env:GIT_AUTHOR_EMAIL='your-email@example.com'
+$env:GIT_COMMITTER_NAME='你的名字'
+$env:GIT_COMMITTER_EMAIL='your-email@example.com'
+git commit -m "message"
+```
+
+### 9.2 Windows 下推送 GitHub 的网络注意事项
+- 当前仓库远端使用的是 HTTPS，不要求必须配置 SSH 才能推送。
+- 浏览器可以打开 GitHub，不代表命令行里的 `git`、`curl`、`git ls-remote` 一定能直连 GitHub。
+- 若出现以下错误，优先怀疑“浏览器走了系统代理，但 Git 没走”：
+  - `Recv failure: Connection was reset`
+  - `Failed to connect to github.com port 443`
+  - `HTTP 408`
+
+### 9.3 排查顺序
+1. 先确认远端地址是否正确：`git remote -v`
+2. 先测试远端读取是否通：`git ls-remote origin`
+3. 若失败，再检查 Windows 系统代理：
+
+```powershell
+Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" |
+  Select-Object ProxyEnable, ProxyServer, AutoConfigURL, AutoDetect
+```
+
+### 9.4 发现系统代理已开启时的处理方式
+- 若 `ProxyEnable = 1` 且 `ProxyServer` 有值，优先让当前终端会话临时复用该代理。
+- 不要为了单次推送去修改全局 Git 配置。
+
+PowerShell 示例：
+
+```powershell
+$env:HTTP_PROXY='http://127.0.0.1:代理端口'
+$env:HTTPS_PROXY='http://127.0.0.1:代理端口'
+git ls-remote origin
+git push origin main
+```
+
+说明：
+- `代理端口` 以系统当前代理为准，不要写死到文档之外的固定值。
+- 推送前先跑 `git ls-remote origin`，确认链路通了再执行 `git push`。
+- 只在当前命令会话里注入代理环境变量，避免影响其他仓库或系统环境。
+
+### 9.5 当前项目的已验证经验
+- 本项目曾出现“浏览器可访问 GitHub，但 Git 无法推送”的情况。
+- 根因是 Windows 用户代理已开启，但 Git/终端默认未复用该代理。
+- 复用系统代理到 `HTTP_PROXY` / `HTTPS_PROXY` 后，`git ls-remote origin` 与 `git push origin main` 均恢复正常。

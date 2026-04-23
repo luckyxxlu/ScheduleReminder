@@ -25,6 +25,7 @@ export function RemindersPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
+  const [editingTemplateEnabled, setEditingTemplateEnabled] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -126,20 +127,9 @@ export function RemindersPage() {
     }
   }
 
-  async function handleEditTemplate() {
-    if (!editingTemplateId) {
-      return
-    }
-
+  async function handleEditTemplate(editingId: string, enabled: boolean) {
     if (!title.trim() || !message.trim()) {
       setErrorMessage('请先填写提醒标题和提醒内容')
-      setSuccessMessage(null)
-      return
-    }
-
-    const currentTemplate = templates.find((item) => item.id === editingTemplateId)
-    if (!currentTemplate) {
-      setErrorMessage('要编辑的提醒模板不存在')
       setSuccessMessage(null)
       return
     }
@@ -148,7 +138,7 @@ export function RemindersPage() {
 
     try {
       const updated = await updateReminderTemplate({
-        id: editingTemplateId,
+        id: editingId,
         title,
         message,
         category,
@@ -160,7 +150,7 @@ export function RemindersPage() {
               : `{"type":"daily","interval":1,"time":"${time}"}`,
         defaultGraceMinutes: Number(graceMinutes),
         note,
-        enabled: currentTemplate.enabled,
+        enabled,
       })
 
       setTemplates((current) => current.map((item) => (item.id === updated.id ? updated : item)))
@@ -177,6 +167,7 @@ export function RemindersPage() {
 
   function startEditing(template: ReminderTemplateListItem) {
     setEditingTemplateId(template.id)
+    setEditingTemplateEnabled(template.enabled)
     setTitle(template.title)
     setMessage(template.message)
     setCategory(template.category ?? '')
@@ -190,6 +181,7 @@ export function RemindersPage() {
 
   function resetForm() {
     setEditingTemplateId(null)
+    setEditingTemplateEnabled(false)
     setTitle('')
     setMessage('')
     setCategory('')
@@ -206,8 +198,8 @@ export function RemindersPage() {
           <h2>提醒</h2>
           <p className="page-subtitle">固定作息模板集中管理，日历里新建的单次事件也会出现在这里。</p>
         </div>
-        <button className="primary-button" disabled={isSubmitting} type="button" onClick={() => void handleCreateTemplate()}>
-          {isSubmitting ? '正在保存...' : '新建提醒模板'}
+        <button className="primary-button" disabled={isSubmitting} type="button" onClick={() => (editingTemplateId ? resetForm() : undefined)}>
+          {isSubmitting ? '正在保存...' : editingTemplateId ? '开始新建' : '新建提醒模板'}
         </button>
       </header>
 
@@ -252,7 +244,12 @@ export function RemindersPage() {
           </label>
         </div>
         <div className="action-row">
-          <button className="primary-button" disabled={isSubmitting} type="button" onClick={() => void (editingTemplateId ? handleEditTemplate() : handleCreateTemplate())}>
+          <button
+            className="primary-button"
+            disabled={isSubmitting}
+            type="button"
+            onClick={() => void (editingTemplateId ? handleEditTemplate(editingTemplateId, editingTemplateEnabled) : handleCreateTemplate())}
+          >
             {isSubmitting ? '正在保存...' : editingTemplateId ? '保存修改' : '保存模板'}
           </button>
           {editingTemplateId ? (

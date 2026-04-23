@@ -43,7 +43,7 @@ Windows 桌面作息提醒工具，推荐技术栈为 React + Rust + Tauri。
 - 前端统一使用 TypeScript，不使用 JavaScript 文件作为业务实现代码。
 - React 负责页面展示、表单交互、日历视图和设置页。
 - Rust 负责调度器、本地数据库、托盘、系统通知和定时可靠性。
-- 数据库存储改为 MySQL。
+- 数据库存储改为 SQLite。
 - 提醒调度不要只依赖前端定时器，应由 Rust 后台统一调度。
 
 ## UI 原则
@@ -61,7 +61,7 @@ Windows 桌面作息提醒工具，推荐技术栈为 React + Rust + Tauri。
 - 自定义事件
 - 系统托盘
 - Windows 通知
-- MySQL 持久化
+- SQLite 持久化
 - 开机自启
 
 ## 暂不优先实现
@@ -100,6 +100,6 @@ npm run tauri build
 - 后端测试用例应覆盖正常路径、边界条件、异常路径和状态流转，开发完成后必须先运行测试验证，再继续集成。
 - 项目开发应以 `docs/requirements.md`、`docs/technical-design.md`、`docs/ux-spec.md` 和 `docs/development-workflow.md` 为基准，并按需求顺序推进。
 - 每完成一个需求，必须遵循 `测试用例 -> 开发 -> 测试 -> 修复 -> 提交` 的固定流程。
-- 使用 MySQL 时需明确连接方式、环境配置和 migration 策略，避免开发环境与运行环境不一致。
+- 使用 SQLite 时需明确数据库文件路径、初始化流程和 migration 策略，避免开发环境与运行环境不一致。
 - 若实现重复规则、通知 API 或系统行为不确定，应先查官方文档再编码。
 - 新增功能时优先保持模型和状态流转简单，避免为未来假设提前做过度设计。
