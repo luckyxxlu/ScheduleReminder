@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { createCalendarEvent, getCalendarOverview, type CalendarOverviewData } from '../../services/dashboard'
+import { extractErrorMessage } from '../../utils/errors'
 
 const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
 
@@ -31,7 +32,7 @@ export function CalendarPage() {
         setErrorMessage(null)
       })
       .catch((error: unknown) => {
-        setErrorMessage(error instanceof Error ? error.message : '日历数据加载失败')
+        setErrorMessage(extractErrorMessage(error, '日历数据加载失败'))
       })
   }, [selectedDate])
 
@@ -63,7 +64,7 @@ export function CalendarPage() {
       setErrorMessage(null)
       setSuccessMessage(`已添加 ${selectedDate} ${draftTime} 的提醒事件`)
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : '日历事件保存失败')
+      setErrorMessage(extractErrorMessage(error, '日历事件保存失败'))
       setSuccessMessage(null)
     } finally {
       setIsSubmitting(false)

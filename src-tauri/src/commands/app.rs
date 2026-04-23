@@ -367,6 +367,9 @@ pub fn get_today_dashboard(
         .lock()
         .map_err(|_| command_error("提醒日志状态不可用"))?;
 
+    let recent_actions: Vec<TodayActionItem> = action_logs.iter().take(4).map(map_today_action_item).collect();
+    let highlighted_status = highlighted_status(&occurrences).to_string();
+
     let next_occurrence = occurrences
         .iter()
         .filter(|item| matches!(item.status.as_str(), "grace" | "pending"))
@@ -374,8 +377,43 @@ pub fn get_today_dashboard(
             occurrence_priority(&left.status)
                 .cmp(&occurrence_priority(&right.status))
                 .then_with(|| left.scheduled_at.cmp(&right.scheduled_at))
-        })
-        .ok_or_else(|| command_error("暂无下一条提醒"))?;
+        });
+
+    let next_occurrence = match next_occurrence {
+        None => {
+            let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+            let today_timeline = occurrences
+                .iter()
+                .filter(|item| date_part(&item.scheduled_at) == today.as_str())
+                .filter_map(|item| {
+                    repository.get(&item.template_id).map(|t| TodayTimelineItem {
+                        id: item.id.clone(),
+                        time: time_part(&item.scheduled_at).to_string(),
+                        title: t.title.clone(),
+                        message: extract_json_string_field(&t.event_payload_json, "message")
+                            .unwrap_or_else(|| "提醒内容缺失".to_string()),
+                        status: status_label(&item.status).to_string(),
+                        is_active: false,
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            return Ok(TodayDashboardData {
+                active_reminder_id: String::new(),
+                next_reminder_title: "暂无待处理提醒".to_string(),
+                next_reminder_time: String::new(),
+                next_reminder_message: "今天的提醒已全部处理完毕，或暂时没有安排。".to_string(),
+                next_reminder_status: "暂无".to_string(),
+                next_reminder_notification_state: "没有待处理的提醒，可以去提醒页添加新模板。".to_string(),
+                next_reminder_grace_deadline: None,
+                next_reminder_available_actions: Vec::new(),
+                highlighted_status,
+                today_timeline,
+                recent_actions,
+            });
+        }
+        Some(occ) => occ,
+    };
 
     let template = repository
         .get(&next_occurrence.template_id)
@@ -418,8 +456,6 @@ pub fn get_today_dashboard(
         Vec::new()
     };
 
-    let highlighted_status = highlighted_status(&occurrences).to_string();
-
     Ok(TodayDashboardData {
         active_reminder_id: next_occurrence.id.clone(),
         next_reminder_title: template.title.clone(),
@@ -431,7 +467,7 @@ pub fn get_today_dashboard(
         next_reminder_available_actions: available_actions,
         highlighted_status,
         today_timeline: timeline,
-        recent_actions: action_logs.iter().take(4).map(map_today_action_item).collect(),
+        recent_actions,
     })
 }
 
@@ -1261,6 +1297,26 @@ mod tests {
         assert_eq!(dashboard.highlighted_status, "宽容中");
         assert_eq!(dashboard.next_reminder_available_actions.len(), 4);
         assert!(dashboard.today_timeline.iter().any(|item| item.title == "喝水提醒"));
+        assert!(dashboard.recent_actions.is_empty());
+    }
+
+    #[test]
+    fn returns_empty_dashboard_when_no_pending_reminders() {
+        let completed_occurrences = seed_occurrences()
+            .into_iter()
+            .map(|mut occ| {
+                occ.status = "completed".to_string();
+                occ
+            })
+            .collect();
+        let runtime = AppRuntimeState::new(completed_occurrences, vec![], default_app_settings());
+        let templates = create_state();
+
+        let dashboard = get_today_dashboard(&runtime, &templates).expect("empty dashboard should load without error");
+
+        assert_eq!(dashboard.active_reminder_id, "");
+        assert_eq!(dashboard.next_reminder_title, "暂无待处理提醒");
+        assert!(dashboard.next_reminder_available_actions.is_empty());
         assert!(dashboard.recent_actions.is_empty());
     }
 
