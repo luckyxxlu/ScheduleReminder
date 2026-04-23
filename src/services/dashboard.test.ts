@@ -72,7 +72,7 @@ describe('dashboard service', () => {
     const result = await getCalendarOverview('2026-04-22')
 
     expect(mockedInvoke).toHaveBeenCalledWith('get_calendar_overview', {
-      selected_date: '2026-04-22',
+      selectedDate: '2026-04-22',
     })
     expect(result).toEqual({ selectedDate: '2026-04-22', entries: [] })
   })
@@ -90,7 +90,7 @@ describe('dashboard service', () => {
     expect(mockedInvoke).toHaveBeenCalledWith('create_calendar_event', {
       title: '深度工作',
       message: '开始今天的专注时段',
-      selected_date: '2026-04-22',
+      selectedDate: '2026-04-22',
       time: '14:30',
     })
     expect(result).toEqual({ selectedDate: '2026-04-22', entries: [] })
