@@ -22,7 +22,8 @@ export function extractErrorMessage(error: unknown, fallback: string): string {
     error !== null &&
     typeof error === 'object' &&
     'message' in error &&
-    typeof (error as Record<string, unknown>).message === 'string'
+    typeof (error as Record<string, unknown>).message === 'string' &&
+    (error as Record<string, unknown>).message !== ''
   ) {
     return (error as Record<string, unknown>).message as string
   }
