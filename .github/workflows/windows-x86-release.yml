@@ -2,8 +2,8 @@ name: windows-x86-release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -34,22 +34,6 @@ jobs:
         with:
           targets: i686-pc-windows-msvc
 
-      - name: Fetch release tags
-        run: git fetch --force --tags
-
-      - name: Resolve release version
-        id: release_version
-        shell: bash
-        env:
-          RELEASE_PATCH_MAX_LINES: "50"
-          RELEASE_MINOR_MAX_LINES: "200"
-        run: |
-          node scripts/release-version.mjs \
-            --base-ref "${{ github.event.before }}" \
-            --head-ref "${{ github.sha }}" \
-            --write \
-            --format github-output >> "$GITHUB_OUTPUT"
-
       - name: Install frontend dependencies
         run: npm ci
 
@@ -65,26 +49,15 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: schedule-reminder-${{ steps.release_version.outputs.version }}-windows-x86
+          name: schedule-reminder-${{ github.ref_name }}-windows-x86
           path: src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe
           if-no-files-found: error
-
-      - name: Create release tag
-        if: steps.release_version.outputs.alreadyTagged != 'true'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "${{ steps.release_version.outputs.tag }}"
-          # If push fails because the tag already exists on remote, treat it as success.
-          git push origin "${{ steps.release_version.outputs.tag }}" || \
-            git ls-remote --exit-code origin "refs/tags/${{ steps.release_version.outputs.tag }}"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release_version.outputs.tag }}
-          name: ${{ steps.release_version.outputs.tag }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           generate_release_notes: true
           body: |
             请直接下载下方的 Windows 安装包（`.exe`）使用应用。
