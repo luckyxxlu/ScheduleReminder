@@ -40,6 +40,13 @@ export function determineBumpType(totalChangedLines, thresholds = {}) {
   return 'patch'
 }
 
+export function extractChangedLineCount(summary) {
+  const insertions = summary.match(/(\d+) insertions?\(\+\)/)
+  const deletions = summary.match(/(\d+) deletions?\(-\)/)
+
+  return Number(insertions?.[1] ?? 0) + Number(deletions?.[1] ?? 0)
+}
+
 export function incrementVersion(version, bumpType) {
   switch (bumpType) {
     case 'major':
@@ -103,23 +110,18 @@ function getChangedLineCount(baseRef, headRef) {
   }
 
   const summary = runGit(['diff', '--shortstat', baseRef, headRef])
-  const matches = summary.match(/\d+/g)
-
-  if (!matches) {
-    return 0
-  }
-
-  return matches.reduce((total, value) => total + Number(value), 0)
+  return extractChangedLineCount(summary)
 }
 
-function replaceOnce(content, pattern, replacement, filePath) {
-  const next = content.replace(pattern, replacement)
+function replaceExactlyOnce(content, pattern, replacement, filePath) {
+  const globalPattern = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+  const matches = [...content.matchAll(globalPattern)]
 
-  if (next === content) {
-    throw new Error(`Failed to update version in ${filePath}`)
+  if (matches.length !== 1) {
+    throw new Error(`Expected exactly one version entry in ${filePath}, found ${matches.length}`)
   }
 
-  return next
+  return content.replace(pattern, replacement)
 }
 
 export function writeVersionFiles(version, rootDir = REPO_ROOT) {
@@ -147,13 +149,13 @@ export function writeVersionFiles(version, rootDir = REPO_ROOT) {
   const cargoToml = fs.readFileSync(cargoTomlPath, 'utf8')
   fs.writeFileSync(
     cargoTomlPath,
-    replaceOnce(cargoToml, /^(version = ")([^"]+)"/m, `$1${version}"`, cargoTomlPath),
+    replaceExactlyOnce(cargoToml, /^(version = ")([^"]+)"/m, `$1${version}"`, cargoTomlPath),
   )
 
   const cargoLock = fs.readFileSync(cargoLockPath, 'utf8')
   fs.writeFileSync(
     cargoLockPath,
-    replaceOnce(
+    replaceExactlyOnce(
       cargoLock,
       /(\[\[package\]\]\s+name = "schedule-reminder"\s+version = ")([^"]+)"/m,
       `$1${version}"`,
@@ -231,15 +233,24 @@ function parseArgs(argv) {
 
     switch (argument) {
       case '--base-ref':
+        if (!argv[index + 1]) {
+          throw new Error('Missing value for --base-ref')
+        }
         options.baseRef = argv[index + 1]
         index += 1
         break
       case '--head-ref':
+        if (!argv[index + 1]) {
+          throw new Error('Missing value for --head-ref')
+        }
         options.headRef = argv[index + 1]
         index += 1
         break
       case '--format':
-        options.format = argv[index + 1] ?? 'json'
+        if (!argv[index + 1]) {
+          throw new Error('Missing value for --format')
+        }
+        options.format = argv[index + 1]
         index += 1
         break
       case '--write':

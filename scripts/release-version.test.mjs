@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   determineBumpType,
+  extractChangedLineCount,
   formatVersion,
   incrementVersion,
   parseVersionTag,
@@ -22,6 +23,12 @@ describe('release version helpers', () => {
     expect(determineBumpType(0, { patchMaxLines: 50, minorMaxLines: 200 })).toBe('patch')
     expect(determineBumpType(80, { patchMaxLines: 50, minorMaxLines: 200 })).toBe('minor')
     expect(determineBumpType(260, { patchMaxLines: 50, minorMaxLines: 200 })).toBe('major')
+  })
+
+  it('counts only inserted and deleted lines from git shortstat output', () => {
+    expect(extractChangedLineCount('1 file changed, 2 insertions(+), 3 deletions(-)')).toBe(5)
+    expect(extractChangedLineCount('3 files changed, 12 insertions(+)')).toBe(12)
+    expect(extractChangedLineCount('2 files changed, 7 deletions(-)')).toBe(7)
   })
 
   it('increments versions with reset semantics', () => {
