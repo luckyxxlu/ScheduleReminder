@@ -73,7 +73,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "${{ steps.release_version.outputs.tag }}"
-          git push origin "${{ steps.release_version.outputs.tag }}"
+          # If push fails because the tag already exists on remote, treat it as success.
+          git push origin "${{ steps.release_version.outputs.tag }}" || \
+            git ls-remote --exit-code origin "refs/tags/${{ steps.release_version.outputs.tag }}"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
