@@ -72,7 +72,7 @@ export async function skipNextReminder(): Promise<TodayDashboardData> {
 }
 
 export async function getCalendarOverview(selectedDate: string): Promise<CalendarOverviewData> {
-  return invoke<CalendarOverviewData>('get_calendar_overview', { selected_date: selectedDate })
+  return invoke<CalendarOverviewData>('get_calendar_overview', { selectedDate })
 }
 
 export async function createCalendarEvent(input: {
@@ -84,7 +84,7 @@ export async function createCalendarEvent(input: {
   return invoke<CalendarOverviewData>('create_calendar_event', {
     title: input.title,
     message: input.message,
-    selected_date: input.selectedDate,
+    selectedDate: input.selectedDate,
     time: input.time,
   })
 }

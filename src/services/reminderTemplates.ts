@@ -45,8 +45,8 @@ export async function createReminderTemplate(input: CreateReminderTemplateInput)
     title: input.title,
     message: input.message,
     category: input.category ?? null,
-    repeat_rule_json: input.repeatRuleJson,
-    default_grace_minutes: input.defaultGraceMinutes,
+    repeatRuleJson: input.repeatRuleJson,
+    defaultGraceMinutes: input.defaultGraceMinutes,
     note: input.note ?? null,
   })
 }
@@ -57,8 +57,8 @@ export async function updateReminderTemplate(input: CreateReminderTemplateInput 
     title: input.title,
     message: input.message,
     category: input.category ?? null,
-    repeat_rule_json: input.repeatRuleJson,
-    default_grace_minutes: input.defaultGraceMinutes,
+    repeatRuleJson: input.repeatRuleJson,
+    defaultGraceMinutes: input.defaultGraceMinutes,
     note: input.note ?? null,
     enabled: input.enabled,
   })

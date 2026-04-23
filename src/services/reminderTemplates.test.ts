@@ -65,8 +65,8 @@ describe('reminderTemplates service', () => {
       title: '深度工作',
       message: '开始 45 分钟专注工作',
       category: 'focus',
-      repeat_rule_json: '{"type":"daily","interval":1,"time":"14:30"}',
-      default_grace_minutes: 15,
+      repeatRuleJson: '{"type":"daily","interval":1,"time":"14:30"}',
+      defaultGraceMinutes: 15,
       note: '下午专注块',
     })
     expect(result).toEqual({ id: 'tpl_3', title: '深度工作' })
@@ -91,8 +91,8 @@ describe('reminderTemplates service', () => {
       title: '补水提醒',
       message: '现在去接一杯温水',
       category: 'health',
-      repeat_rule_json: '{"type":"daily","interval":1,"time":"09:30"}',
-      default_grace_minutes: 20,
+      repeatRuleJson: '{"type":"daily","interval":1,"time":"09:30"}',
+      defaultGraceMinutes: 20,
       note: '上午第二次补水',
       enabled: true,
     })

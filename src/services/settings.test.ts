@@ -36,9 +36,9 @@ describe('settings service', () => {
     })
 
     expect(mockedInvoke).toHaveBeenCalledWith('update_settings', {
-      default_grace_minutes: 15,
-      startup_with_windows: true,
-      close_to_tray_on_close: false,
+      defaultGraceMinutes: 15,
+      startupWithWindows: true,
+      closeToTrayOnClose: false,
     })
     expect(result).toEqual({ defaultGraceMinutes: 15, startupWithWindows: true, closeToTrayOnClose: false })
   })
