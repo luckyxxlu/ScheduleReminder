@@ -9,6 +9,7 @@ import {
   toggleReminderTemplate,
   updateReminderTemplate,
 } from '../../services/reminderTemplates'
+import { extractErrorMessage } from '../../utils/errors'
 
 export function RemindersPage() {
   const navigate = useNavigate()
@@ -44,7 +45,7 @@ export function RemindersPage() {
           return
         }
 
-        setErrorMessage(error instanceof Error ? error.message : '提醒模板加载失败')
+        setErrorMessage(extractErrorMessage(error, '提醒模板加载失败'))
       })
       .finally(() => {
         if (isMounted) {
@@ -68,7 +69,7 @@ export function RemindersPage() {
       setSuccessMessage(`${updated.title} 已${updated.enabled ? '启用' : '暂停'}`)
       setErrorMessage(null)
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : '提醒模板状态更新失败')
+      setErrorMessage(extractErrorMessage(error, '提醒模板状态更新失败'))
       setSuccessMessage(null)
     }
   }
@@ -80,7 +81,7 @@ export function RemindersPage() {
       setSuccessMessage(`已复制模板 ${duplicated.title}`)
       setErrorMessage(null)
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : '复制提醒模板失败')
+      setErrorMessage(extractErrorMessage(error, '复制提醒模板失败'))
       setSuccessMessage(null)
     }
   }
@@ -120,7 +121,7 @@ export function RemindersPage() {
       setErrorMessage(null)
       setSuccessMessage(`已保存提醒模板 ${created.title}`)
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : '保存提醒模板失败')
+      setErrorMessage(extractErrorMessage(error, '保存提醒模板失败'))
       setSuccessMessage(null)
     } finally {
       setIsSubmitting(false)
@@ -158,7 +159,7 @@ export function RemindersPage() {
       setSuccessMessage(`已更新提醒模板 ${updated.title}`)
       setErrorMessage(null)
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : '更新提醒模板失败')
+      setErrorMessage(extractErrorMessage(error, '更新提醒模板失败'))
       setSuccessMessage(null)
     } finally {
       setIsSubmitting(false)

@@ -19,8 +19,8 @@ export async function updateSettings(input: {
   closeToTrayOnClose: boolean
 }): Promise<SettingsViewData> {
   return invoke<SettingsViewData>('update_settings', {
-    default_grace_minutes: input.defaultGraceMinutes,
-    startup_with_windows: input.startupWithWindows,
-    close_to_tray_on_close: input.closeToTrayOnClose,
+    defaultGraceMinutes: input.defaultGraceMinutes,
+    startupWithWindows: input.startupWithWindows,
+    closeToTrayOnClose: input.closeToTrayOnClose,
   })
 }
