@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { getSettings, updateSettings } from '../../services/settings'
+import { extractErrorMessage } from '../../utils/errors'
 
 export function SettingsPage() {
   const [graceMinutes, setGraceMinutes] = useState('10')
@@ -20,7 +21,7 @@ export function SettingsPage() {
         setErrorMessage(null)
       })
       .catch((error: unknown) => {
-        setErrorMessage(error instanceof Error ? error.message : '设置加载失败')
+        setErrorMessage(extractErrorMessage(error, '设置加载失败'))
       })
       .finally(() => {
         setIsLoading(false)
@@ -49,7 +50,7 @@ export function SettingsPage() {
       setErrorMessage(null)
       setSuccessMessage('设置已保存')
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : '设置保存失败')
+      setErrorMessage(extractErrorMessage(error, '设置保存失败'))
       setSuccessMessage(null)
     } finally {
       setIsSaving(false)

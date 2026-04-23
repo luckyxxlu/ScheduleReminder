@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use schedule_reminder::commands::app::{
     create_calendar_event_command, create_reminder_template_command, default_app_settings, duplicate_reminder_template_command,
     get_calendar_overview_command, get_settings_command, get_today_dashboard_command,

@@ -9,6 +9,7 @@ import {
   snoozeNextReminder,
   type TodayDashboardData,
 } from '../../services/dashboard'
+import { extractErrorMessage } from '../../utils/errors'
 
 const snoozeOptions = [5, 10, 15, 30] as const
 
@@ -37,7 +38,7 @@ export function TodayPage() {
           return
         }
 
-        setErrorMessage(error instanceof Error ? error.message : '今天页加载失败')
+        setErrorMessage(extractErrorMessage(error, '今天页加载失败'))
       })
 
     return () => {
@@ -54,7 +55,7 @@ export function TodayPage() {
       setSuccessMessage(successText)
       setErrorMessage(null)
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : '提醒处理失败')
+      setErrorMessage(extractErrorMessage(error, '提醒处理失败'))
       setSuccessMessage(null)
     } finally {
       setIsSubmitting(false)
