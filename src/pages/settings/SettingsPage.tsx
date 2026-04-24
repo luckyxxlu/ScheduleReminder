@@ -151,7 +151,7 @@ export function SettingsPage() {
               </button>
             </div>
             <p className="panel-text" style={{ fontSize: 12, marginTop: 16, textAlign: 'center', opacity: 0.5 }}>
-              时间助手 v1.0.1 · 基于 Tauri 构建
+              时间助手 v1.0.2 · 基于 Tauri 构建
             </p>
           </article>
         </div>
