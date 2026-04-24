@@ -19,7 +19,8 @@ pub fn validate_database_url(database_url: &str) -> Result<(), DbConfigError> {
 }
 
 pub fn create_pool(database_url: &str) -> Result<DbPool, MigrationError> {
-    let database_path = extract_database_path(database_url).map_err(MigrationError::InvalidConfig)?;
+    let database_path =
+        extract_database_path(database_url).map_err(MigrationError::InvalidConfig)?;
 
     if let Some(parent) = Path::new(&database_path).parent() {
         if !parent.as_os_str().is_empty() {
@@ -27,7 +28,8 @@ pub fn create_pool(database_url: &str) -> Result<DbPool, MigrationError> {
         }
     }
 
-    let connection = Connection::open(database_path).map_err(|_| MigrationError::SqliteOpenFailed)?;
+    let connection =
+        Connection::open(database_path).map_err(|_| MigrationError::SqliteOpenFailed)?;
     connection
         .pragma_update(None, "foreign_keys", "ON")
         .map_err(|_| MigrationError::StatementExecutionFailed)?;
@@ -36,7 +38,9 @@ pub fn create_pool(database_url: &str) -> Result<DbPool, MigrationError> {
 }
 
 pub fn run_migrations(pool: &DbPool) -> Result<(), MigrationError> {
-    let connection = pool.lock().map_err(|_| MigrationError::StatementExecutionFailed)?;
+    let connection = pool
+        .lock()
+        .map_err(|_| MigrationError::StatementExecutionFailed)?;
 
     for statement in migration_statements() {
         connection
@@ -127,14 +131,18 @@ fn ensure_legacy_columns(connection: &Connection) -> Result<(), MigrationError> 
         "reminder_occurrences",
         "created_at",
         "ALTER TABLE reminder_occurrences ADD COLUMN created_at TEXT NOT NULL DEFAULT ''",
-        Some("UPDATE reminder_occurrences SET created_at = CURRENT_TIMESTAMP WHERE created_at = ''"),
+        Some(
+            "UPDATE reminder_occurrences SET created_at = CURRENT_TIMESTAMP WHERE created_at = ''",
+        ),
     )?;
     ensure_column(
         connection,
         "reminder_occurrences",
         "updated_at",
         "ALTER TABLE reminder_occurrences ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
-        Some("UPDATE reminder_occurrences SET updated_at = CURRENT_TIMESTAMP WHERE updated_at = ''"),
+        Some(
+            "UPDATE reminder_occurrences SET updated_at = CURRENT_TIMESTAMP WHERE updated_at = ''",
+        ),
     )?;
 
     ensure_column(

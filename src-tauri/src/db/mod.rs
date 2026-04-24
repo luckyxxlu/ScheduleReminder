@@ -7,8 +7,8 @@ pub mod reminder_template_repository;
 mod tests {
     use super::config::{database_url_from_env, load_db_config, DbConfigError};
     use super::migration::{
-        create_pool, initialize_database, migration_statements, run_migrations, validate_database_url,
-        MigrationError,
+        create_pool, initialize_database, migration_statements, run_migrations,
+        validate_database_url, MigrationError,
     };
 
     #[test]
@@ -56,7 +56,10 @@ mod tests {
     #[test]
     fn rejects_non_sqlite_database_urls() {
         unsafe {
-            std::env::set_var("DATABASE_URL", "mysql://root:password@127.0.0.1:3306/schedule_reminder");
+            std::env::set_var(
+                "DATABASE_URL",
+                "mysql://root:password@127.0.0.1:3306/schedule_reminder",
+            );
         }
 
         let error = database_url_from_env().expect_err("non-sqlite scheme should fail");
@@ -87,10 +90,18 @@ mod tests {
         let statements = migration_statements();
 
         assert!(!statements.is_empty());
-        assert!(statements.iter().any(|statement| statement.contains("reminder_templates")));
-        assert!(statements.iter().any(|statement| statement.contains("reminder_occurrences")));
-        assert!(statements.iter().any(|statement| statement.contains("reminder_action_logs")));
-        assert!(statements.iter().any(|statement| statement.contains("app_settings")));
+        assert!(statements
+            .iter()
+            .any(|statement| statement.contains("reminder_templates")));
+        assert!(statements
+            .iter()
+            .any(|statement| statement.contains("reminder_occurrences")));
+        assert!(statements
+            .iter()
+            .any(|statement| statement.contains("reminder_action_logs")));
+        assert!(statements
+            .iter()
+            .any(|statement| statement.contains("app_settings")));
     }
 
     #[test]
@@ -108,7 +119,9 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(MigrationError::InvalidConfig(DbConfigError::UnsupportedScheme))
+            Err(MigrationError::InvalidConfig(
+                DbConfigError::UnsupportedScheme
+            ))
         ));
     }
 
