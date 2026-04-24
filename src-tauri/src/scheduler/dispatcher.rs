@@ -10,10 +10,7 @@ pub struct SchedulerScanResult {
     pub resynced_occurrences: Vec<ReminderOccurrence>,
 }
 
-pub fn scan_occurrences(
-    now: &str,
-    occurrences: &mut [ReminderOccurrence],
-) -> SchedulerScanResult {
+pub fn scan_occurrences(now: &str, occurrences: &mut [ReminderOccurrence]) -> SchedulerScanResult {
     let mut triggered_ids = Vec::new();
     let mut missed_ids = Vec::new();
     let mut logs = Vec::new();
@@ -80,7 +77,10 @@ pub fn resync_occurrences(
     for template in templates.iter().filter(|item| item.enabled) {
         if let Ok(generated) = generate_occurrences(template, start_date, time, count) {
             for occurrence in generated {
-                let key = (occurrence.template_id.clone(), occurrence.scheduled_at.clone());
+                let key = (
+                    occurrence.template_id.clone(),
+                    occurrence.scheduled_at.clone(),
+                );
                 if known.insert(key) {
                     resynced_occurrences.push(occurrence);
                 }

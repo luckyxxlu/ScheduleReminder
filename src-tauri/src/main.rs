@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use schedule_reminder::commands::app::{
-    create_calendar_event_command, create_reminder_template_command, default_app_settings, delete_calendar_event_command,
-    duplicate_reminder_template_command,
+    create_calendar_event_command, create_reminder_template_command, default_app_settings,
+    delete_calendar_event_command, duplicate_reminder_template_command,
     get_calendar_overview_command, get_settings_command, get_today_dashboard_command,
     grace_next_reminder_ten_minutes_command, greet, list_reminder_templates_command,
     mark_next_reminder_completed_command, seed_occurrences, seed_reminder_templates,
@@ -45,10 +45,16 @@ fn show_main_window(app: &AppHandle) {
 fn build_system_tray(app: &AppHandle) -> tauri::Result<()> {
     let show_item = MenuItemBuilder::with_id(SHOW_WINDOW_MENU_ID, "打开时间助手").build(app)?;
     let quit_item = MenuItemBuilder::with_id(QUIT_APP_MENU_ID, "退出").build(app)?;
-    let menu = MenuBuilder::new(app).items(&[&show_item, &quit_item]).build()?;
+    let menu = MenuBuilder::new(app)
+        .items(&[&show_item, &quit_item])
+        .build()?;
 
     TrayIconBuilder::new()
-        .icon(app.default_window_icon().expect("default window icon should exist").clone())
+        .icon(
+            app.default_window_icon()
+                .expect("default window icon should exist")
+                .clone(),
+        )
         .tooltip("时间助手")
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -212,7 +218,15 @@ fn create_calendar_event(
     selected_date: String,
     time: String,
 ) -> Result<CalendarOverviewData, ReminderTemplateCommandError> {
-    create_calendar_event_command(runtime, templates, database, title, message, selected_date, time)
+    create_calendar_event_command(
+        runtime,
+        templates,
+        database,
+        title,
+        message,
+        selected_date,
+        time,
+    )
 }
 
 #[tauri::command]
@@ -258,10 +272,16 @@ fn main() {
     let seed_occurrence_items = seed_occurrences();
     let seed_settings = default_app_settings();
 
-    bootstrap_defaults(&pool, &seed_templates, &seed_occurrence_items, &seed_settings)
-        .expect("database bootstrap should succeed");
+    bootstrap_defaults(
+        &pool,
+        &seed_templates,
+        &seed_occurrence_items,
+        &seed_settings,
+    )
+    .expect("database bootstrap should succeed");
 
-    let template_repository = load_template_repository(&pool).expect("templates should load from sqlite");
+    let template_repository =
+        load_template_repository(&pool).expect("templates should load from sqlite");
     let occurrences = load_occurrences(&pool).expect("occurrences should load from sqlite");
     let action_logs = load_action_logs(&pool).expect("action logs should load from sqlite");
     let settings = load_settings(&pool).expect("settings should load from sqlite");

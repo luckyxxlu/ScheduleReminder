@@ -42,9 +42,7 @@ fn tick(
     templates: &ReminderTemplateState,
     database: &DatabaseState,
 ) {
-    let now = chrono::Local::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
     let result = {
         let mut occurrences = match runtime.occurrences.lock() {
@@ -54,7 +52,8 @@ fn tick(
 
         let result = scan_occurrences(&now, &mut occurrences);
 
-        if result.triggered_ids.is_empty() && result.logs.is_empty() && result.missed_ids.is_empty() {
+        if result.triggered_ids.is_empty() && result.logs.is_empty() && result.missed_ids.is_empty()
+        {
             return;
         }
 

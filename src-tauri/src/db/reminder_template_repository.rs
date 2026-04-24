@@ -112,7 +112,11 @@ impl InMemoryReminderTemplateRepository {
     }
 
     pub fn duplicate(&mut self, id: &str) -> Result<ReminderTemplate, ReminderTemplateError> {
-        let source = self.items.get(id).ok_or(ReminderTemplateError::NotFound)?.clone();
+        let source = self
+            .items
+            .get(id)
+            .ok_or(ReminderTemplateError::NotFound)?
+            .clone();
 
         self.next_id += 1;
 
@@ -210,7 +214,9 @@ mod tests {
     fn creates_reminder_template() {
         let mut repository = InMemoryReminderTemplateRepository::default();
 
-        let created = repository.create(create_text_input()).expect("create should succeed");
+        let created = repository
+            .create(create_text_input())
+            .expect("create should succeed");
 
         assert_eq!(created.id, "tpl_1");
         assert_eq!(created.title, "喝水提醒");
@@ -223,7 +229,9 @@ mod tests {
         let mut input = create_text_input();
         input.title = "   ".to_string();
 
-        let error = repository.create(input).expect_err("empty title should fail");
+        let error = repository
+            .create(input)
+            .expect_err("empty title should fail");
 
         assert_eq!(error, ReminderTemplateError::EmptyTitle);
     }
@@ -244,7 +252,9 @@ mod tests {
     #[test]
     fn updates_existing_template() {
         let mut repository = InMemoryReminderTemplateRepository::default();
-        let created = repository.create(create_text_input()).expect("create should succeed");
+        let created = repository
+            .create(create_text_input())
+            .expect("create should succeed");
 
         let updated = repository
             .update(UpdateReminderTemplateInput {
@@ -269,9 +279,13 @@ mod tests {
     #[test]
     fn deletes_existing_template() {
         let mut repository = InMemoryReminderTemplateRepository::default();
-        let created = repository.create(create_text_input()).expect("create should succeed");
+        let created = repository
+            .create(create_text_input())
+            .expect("create should succeed");
 
-        repository.delete(&created.id).expect("delete should succeed");
+        repository
+            .delete(&created.id)
+            .expect("delete should succeed");
 
         assert!(repository.get(&created.id).is_none());
     }
@@ -279,7 +293,9 @@ mod tests {
     #[test]
     fn toggles_template_enabled_state() {
         let mut repository = InMemoryReminderTemplateRepository::default();
-        let created = repository.create(create_text_input()).expect("create should succeed");
+        let created = repository
+            .create(create_text_input())
+            .expect("create should succeed");
 
         let toggled = repository
             .toggle_enabled(&created.id, false)
@@ -291,9 +307,13 @@ mod tests {
     #[test]
     fn duplicates_template_with_new_identifier() {
         let mut repository = InMemoryReminderTemplateRepository::default();
-        let created = repository.create(create_text_input()).expect("create should succeed");
+        let created = repository
+            .create(create_text_input())
+            .expect("create should succeed");
 
-        let duplicate = repository.duplicate(&created.id).expect("duplicate should succeed");
+        let duplicate = repository
+            .duplicate(&created.id)
+            .expect("duplicate should succeed");
 
         assert_ne!(duplicate.id, created.id);
         assert_eq!(duplicate.title, "喝水提醒（副本）");
@@ -305,7 +325,9 @@ mod tests {
         let mut input = create_text_input();
         input.default_grace_minutes = -1;
 
-        let error = repository.create(input).expect_err("negative grace should fail");
+        let error = repository
+            .create(input)
+            .expect_err("negative grace should fail");
 
         assert_eq!(error, ReminderTemplateError::NegativeGraceMinutes);
     }
@@ -330,7 +352,9 @@ mod tests {
         input.event_type = ReminderEventType::SystemAction;
         input.event_payload_json = r#"{"action":"shutdown","message":"准备关机"}"#.to_string();
 
-        let created = repository.create(input).expect("system action payload should be valid");
+        let created = repository
+            .create(input)
+            .expect("system action payload should be valid");
 
         assert_eq!(created.event_type, ReminderEventType::SystemAction);
     }

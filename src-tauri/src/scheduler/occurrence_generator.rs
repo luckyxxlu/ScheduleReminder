@@ -240,10 +240,7 @@ mod tests {
         let error = generate_occurrences(&template, "2026-04-22", "08:00", 1)
             .expect_err("invalid repeat rule should fail");
 
-        assert_eq!(
-            error,
-            ReminderOccurrenceError::InvalidRepeatRule
-        );
+        assert_eq!(error, ReminderOccurrenceError::InvalidRepeatRule);
     }
 
     #[test]

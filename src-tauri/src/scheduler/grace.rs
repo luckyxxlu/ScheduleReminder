@@ -139,11 +139,19 @@ mod tests {
     fn applies_grace_ten_minutes_snooze() {
         let mut occurrence = grace_occurrence();
 
-        let log = snooze_occurrence(&mut occurrence, "2026-04-22 08:00:00", 10, "grace_10_minutes")
-            .expect("10 minute grace should succeed");
+        let log = snooze_occurrence(
+            &mut occurrence,
+            "2026-04-22 08:00:00",
+            10,
+            "grace_10_minutes",
+        )
+        .expect("10 minute grace should succeed");
 
         assert_eq!(occurrence.status, "pending");
-        assert_eq!(occurrence.snoozed_until.as_deref(), Some("2026-04-22 08:10:00"));
+        assert_eq!(
+            occurrence.snoozed_until.as_deref(),
+            Some("2026-04-22 08:10:00")
+        );
         assert_eq!(occurrence.grace_deadline_at.as_str(), "2026-04-22 08:20:00");
         assert_eq!(log.action, "grace_10_minutes");
     }
@@ -152,7 +160,8 @@ mod tests {
     fn applies_supported_snooze_options() {
         for minutes in [5_u32, 10, 15, 30] {
             let mut occurrence = grace_occurrence();
-            let result = snooze_occurrence(&mut occurrence, "2026-04-22 08:00:00", minutes, "snoozed");
+            let result =
+                snooze_occurrence(&mut occurrence, "2026-04-22 08:00:00", minutes, "snoozed");
             assert!(result.is_ok());
         }
     }
@@ -175,7 +184,10 @@ mod tests {
             .expect("complete should succeed");
 
         assert_eq!(occurrence.status, "completed");
-        assert_eq!(occurrence.handled_at.as_deref(), Some("2026-04-22 08:03:00"));
+        assert_eq!(
+            occurrence.handled_at.as_deref(),
+            Some("2026-04-22 08:03:00")
+        );
         assert_eq!(log.action, "completed");
     }
 
@@ -183,11 +195,14 @@ mod tests {
     fn skips_occurrence_from_grace() {
         let mut occurrence = grace_occurrence();
 
-        let log = skip_occurrence(&mut occurrence, "2026-04-22 08:03:00")
-            .expect("skip should succeed");
+        let log =
+            skip_occurrence(&mut occurrence, "2026-04-22 08:03:00").expect("skip should succeed");
 
         assert_eq!(occurrence.status, "skipped");
-        assert_eq!(occurrence.handled_at.as_deref(), Some("2026-04-22 08:03:00"));
+        assert_eq!(
+            occurrence.handled_at.as_deref(),
+            Some("2026-04-22 08:03:00")
+        );
         assert_eq!(log.action, "skipped");
     }
 
@@ -206,11 +221,19 @@ mod tests {
     fn snooze_crosses_midnight_into_next_day() {
         let mut occurrence = grace_occurrence();
 
-        snooze_occurrence(&mut occurrence, "2026-04-30 23:55:00", 10, "grace_10_minutes")
-            .expect("cross-day snooze should succeed");
+        snooze_occurrence(
+            &mut occurrence,
+            "2026-04-30 23:55:00",
+            10,
+            "grace_10_minutes",
+        )
+        .expect("cross-day snooze should succeed");
 
         assert_eq!(occurrence.status, "pending");
-        assert_eq!(occurrence.snoozed_until.as_deref(), Some("2026-05-01 00:05:00"));
+        assert_eq!(
+            occurrence.snoozed_until.as_deref(),
+            Some("2026-05-01 00:05:00")
+        );
         assert_eq!(occurrence.grace_deadline_at.as_str(), "2026-05-01 00:15:00");
     }
 
@@ -223,7 +246,10 @@ mod tests {
         snooze_occurrence(&mut occurrence, "2026-04-22 08:16:00", 5, "snoozed")
             .expect("repeat snooze should keep original grace window");
 
-        assert_eq!(occurrence.snoozed_until.as_deref(), Some("2026-04-22 08:21:00"));
+        assert_eq!(
+            occurrence.snoozed_until.as_deref(),
+            Some("2026-04-22 08:21:00")
+        );
         assert_eq!(occurrence.grace_deadline_at.as_str(), "2026-04-22 08:31:00");
     }
 
@@ -236,7 +262,10 @@ mod tests {
         snooze_occurrence(&mut occurrence, "2026-04-22 08:04:00", 5, "snoozed")
             .expect("legacy persisted grace window should be recovered");
 
-        assert_eq!(occurrence.snoozed_until.as_deref(), Some("2026-04-22 08:09:00"));
+        assert_eq!(
+            occurrence.snoozed_until.as_deref(),
+            Some("2026-04-22 08:09:00")
+        );
         assert_eq!(occurrence.grace_deadline_at.as_str(), "2026-04-22 08:19:00");
     }
 

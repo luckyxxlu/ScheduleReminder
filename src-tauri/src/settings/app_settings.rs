@@ -60,7 +60,9 @@ pub fn quiet_hours_active(settings: &AppSettings, current_time: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{quiet_hours_active, set_launch_on_startup, validate_settings, AppSettings, SettingsError};
+    use super::{
+        quiet_hours_active, set_launch_on_startup, validate_settings, AppSettings, SettingsError,
+    };
 
     fn sample_settings() -> AppSettings {
         AppSettings {
