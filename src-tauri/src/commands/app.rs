@@ -997,6 +997,7 @@ fn map_persistence_error(error: PersistenceError) -> ReminderTemplateCommandErro
 fn map_grace_error(error: GraceError) -> ReminderTemplateCommandError {
     let message = match error {
         GraceError::InvalidSnoozeMinutes => "稍后提醒仅支持 5/10/15/30 分钟",
+        GraceError::InvalidTimestamp => "提醒时间数据格式无效，请重新保存提醒",
         GraceError::NotInGrace => "当前没有宽容中的提醒",
     };
 
