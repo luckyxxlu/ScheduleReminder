@@ -209,6 +209,49 @@ export function RemindersPage() {
 
       <div className="page-grid page-grid-two">
         <article className="panel">
+          <span className="panel-label">提醒模板列表</span>
+          <strong className="panel-title">全部提醒</strong>
+          <p className="panel-text">支持启停、复制与查看规则</p>
+
+          <div className="reminders-panel" style={{ marginTop: 0 }}>
+            {isLoading ? <p className="template-row panel-text">正在加载提醒模板...</p> : null}
+
+            {templates.map((template) => (
+              <div className="template-card" key={template.id}>
+                <div className="template-card-header">
+                  <div>
+                    <strong>{template.title}</strong>
+                    <p className="panel-text" style={{ marginBottom: 0 }}>
+                      {template.scheduleSummary} | {template.eventTypeLabel}
+                    </p>
+                  </div>
+                  <span className={`status-chip ${template.enabled ? 'status-已完成' : 'status-已跳过'}`}>
+                    {template.enabled ? '运行中' : '已暂停'}
+                  </span>
+                </div>
+                <div className="action-row" style={{ marginTop: 16 }}>
+                  <button className="secondary-button" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }} type="button" onClick={() => handleToggle(template)}>
+                    {template.enabled ? '停用' : '启用'}
+                  </button>
+                  <button aria-label={`编辑 ${template.title}`} className="secondary-button" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }} type="button" onClick={() => startEditing(template)}>
+                    编辑
+                  </button>
+                  <button
+                    aria-label={`复制 ${template.title}`}
+                    className="secondary-button"
+                    style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }}
+                    type="button"
+                    onClick={() => handleDuplicate(template.id)}
+                  >
+                    复制
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
           <span className="panel-label">快速创建</span>
           <strong className="panel-title">{editingTemplateId ? '编辑提醒模板' : '真正可用的提醒模板'}</strong>
           <p className="panel-text">标题和提醒内容完全分开填写。你可以把标题写成“深度工作”，内容写成“开始 45 分钟专注工作”。</p>
@@ -265,49 +308,6 @@ export function RemindersPage() {
             <button className="secondary-button" type="button" onClick={() => navigate('/calendar')}>
               去日历查看
             </button>
-          </div>
-        </article>
-
-        <article className="panel">
-          <span className="panel-label">提醒模板列表</span>
-          <strong className="panel-title">全部提醒</strong>
-          <p className="panel-text">支持启停、复制与查看规则</p>
-
-          <div className="reminders-panel" style={{ marginTop: 0 }}>
-            {isLoading ? <p className="template-row panel-text">正在加载提醒模板...</p> : null}
-
-            {templates.map((template) => (
-              <div className="template-card" key={template.id}>
-                <div className="template-card-header">
-                  <div>
-                    <strong>{template.title}</strong>
-                    <p className="panel-text" style={{ marginBottom: 0 }}>
-                      {template.scheduleSummary} | {template.eventTypeLabel}
-                    </p>
-                  </div>
-                  <span className={`status-chip ${template.enabled ? 'status-已完成' : 'status-已跳过'}`}>
-                    {template.enabled ? '运行中' : '已暂停'}
-                  </span>
-                </div>
-                <div className="action-row" style={{ marginTop: 16 }}>
-                  <button className="secondary-button" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }} type="button" onClick={() => handleToggle(template)}>
-                    {template.enabled ? '停用' : '启用'}
-                  </button>
-                  <button aria-label={`编辑 ${template.title}`} className="secondary-button" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }} type="button" onClick={() => startEditing(template)}>
-                    编辑
-                  </button>
-                  <button
-                    aria-label={`复制 ${template.title}`}
-                    className="secondary-button"
-                    style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }}
-                    type="button"
-                    onClick={() => handleDuplicate(template.id)}
-                  >
-                    复制
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         </article>
       </div>

@@ -110,19 +110,26 @@ fn tick(
             time_part(&occurrence.grace_deadline_at)
         );
 
-        let _ = app_handle
+        if let Err(e) = app_handle
             .notification()
             .builder()
             .title(&notification_payload.title)
             .body(&notification_body)
-            .show();
-
-        if let Some(window) = app_handle.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.set_focus();
+            .show()
+        {
+            eprintln!("Failed to show notification: {}", e);
         }
 
-        let _ = app_handle.emit(
+        if let Some(window) = app_handle.get_webview_window("main") {
+            if let Err(e) = window.show() {
+                eprintln!("Failed to show window: {}", e);
+            }
+            if let Err(e) = window.set_focus() {
+                eprintln!("Failed to set window focus: {}", e);
+            }
+        }
+
+        if let Err(e) = app_handle.emit(
             REMINDER_TRIGGERED_EVENT,
             ReminderTriggeredPayload {
                 occurrence_id: occurrence.id.clone(),
@@ -131,7 +138,9 @@ fn tick(
                 scheduled_time: time_part(&occurrence.scheduled_at).to_string(),
                 grace_deadline: time_part(&occurrence.grace_deadline_at).to_string(),
             },
-        );
+        ) {
+            eprintln!("Failed to emit REMINDER_TRIGGERED_EVENT: {}", e);
+        }
     }
 }
 

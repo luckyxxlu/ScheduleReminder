@@ -108,7 +108,7 @@ export function SettingsPage() {
           </div>
         </article>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', paddingBottom: '24px' }}>
           <article className="panel">
             <span className="panel-label">系统集成</span>
             <strong className="panel-title">后台运行方式</strong>

@@ -39,10 +39,7 @@ pub fn scan_occurrences(
             }
         }
 
-        let expiry = occurrence
-            .snoozed_until
-            .clone()
-            .unwrap_or_else(|| occurrence.grace_deadline_at.clone());
+        let expiry = occurrence.grace_deadline_at.clone();
 
         if occurrence.status == "grace" && expiry.as_str() < now {
             occurrence.status = "missed".to_string();
@@ -181,17 +178,18 @@ mod tests {
     }
 
     #[test]
-    fn uses_snoozed_until_as_effective_grace_deadline() {
+    fn uses_grace_deadline_at_as_expiry_for_grace() {
         let mut occurrence = pending_occurrence();
         occurrence.status = "grace".to_string();
         occurrence.snoozed_until = Some("2026-04-22 08:20:00".to_string());
+        occurrence.grace_deadline_at = "2026-04-22 08:25:00".to_string();
         let mut occurrences = vec![occurrence];
 
-        let early = scan_occurrences("2026-04-22 08:15:00", &mut occurrences);
+        let early = scan_occurrences("2026-04-22 08:24:00", &mut occurrences);
         assert_eq!(occurrences[0].status, "grace");
         assert!(early.missed_ids.is_empty());
 
-        let late = scan_occurrences("2026-04-22 08:20:01", &mut occurrences);
+        let late = scan_occurrences("2026-04-22 08:25:01", &mut occurrences);
         assert_eq!(occurrences[0].status, "missed");
         assert_eq!(late.missed_ids, vec!["occ_1".to_string()]);
     }
