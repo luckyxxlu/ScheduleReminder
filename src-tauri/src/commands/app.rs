@@ -11,8 +11,12 @@ use crate::models::reminder_occurrence::ReminderOccurrence;
 use crate::models::reminder_template::{
     CreateReminderTemplateInput, ReminderEventType, ReminderTemplate, ReminderTemplateError,
 };
-use crate::scheduler::grace::{complete_occurrence, skip_occurrence, snooze_occurrence, GraceError};
-use crate::settings::app_settings::{set_launch_on_startup, validate_settings, AppSettings, SettingsError};
+use crate::scheduler::grace::{
+    complete_occurrence, skip_occurrence, snooze_occurrence, GraceError,
+};
+use crate::settings::app_settings::{
+    set_launch_on_startup, validate_settings, AppSettings, SettingsError,
+};
 use crate::state::app_runtime::AppRuntimeState;
 use crate::state::database::DatabaseState;
 use crate::state::reminder_templates::ReminderTemplateState;
@@ -295,9 +299,7 @@ pub fn duplicate_reminder_template(
         .lock()
         .map_err(|_| command_error("提醒模板状态不可用"))?;
 
-    let duplicated = repository
-        .duplicate(&id)
-        .map_err(map_template_error)?;
+    let duplicated = repository.duplicate(&id).map_err(map_template_error)?;
 
     save_all_templates(&database.pool, &repository.list()).map_err(map_persistence_error)?;
 
@@ -319,7 +321,10 @@ pub fn create_reminder_template(
             title: input.title.trim().to_string(),
             category: input.category.and_then(normalize_optional_text),
             event_type: ReminderEventType::Text,
-            event_payload_json: format!(r#"{{"message":"{}"}}"#, escape_json_string(&input.message)),
+            event_payload_json: format!(
+                r#"{{"message":"{}"}}"#,
+                escape_json_string(&input.message)
+            ),
             repeat_rule_json: input.repeat_rule_json,
             default_grace_minutes: input.default_grace_minutes,
             notify_sound: true,
@@ -343,18 +348,23 @@ pub fn update_reminder_template(
         .map_err(|_| command_error("提醒模板状态不可用"))?;
 
     let updated = repository
-        .update(crate::models::reminder_template::UpdateReminderTemplateInput {
-            id: input.id,
-            title: input.title.trim().to_string(),
-            category: input.category.and_then(normalize_optional_text),
-            event_type: ReminderEventType::Text,
-            event_payload_json: format!(r#"{{"message":"{}"}}"#, escape_json_string(&input.message)),
-            repeat_rule_json: input.repeat_rule_json,
-            default_grace_minutes: input.default_grace_minutes,
-            notify_sound: true,
-            note: input.note.and_then(normalize_optional_text),
-            enabled: input.enabled,
-        })
+        .update(
+            crate::models::reminder_template::UpdateReminderTemplateInput {
+                id: input.id,
+                title: input.title.trim().to_string(),
+                category: input.category.and_then(normalize_optional_text),
+                event_type: ReminderEventType::Text,
+                event_payload_json: format!(
+                    r#"{{"message":"{}"}}"#,
+                    escape_json_string(&input.message)
+                ),
+                repeat_rule_json: input.repeat_rule_json,
+                default_grace_minutes: input.default_grace_minutes,
+                notify_sound: true,
+                note: input.note.and_then(normalize_optional_text),
+                enabled: input.enabled,
+            },
+        )
         .map_err(map_template_error)?;
 
     save_all_templates(&database.pool, &repository.list()).map_err(map_persistence_error)?;
@@ -407,15 +417,17 @@ pub fn get_today_dashboard(
             let today_timeline = today_occurrences
                 .iter()
                 .filter_map(|item| {
-                    repository.get(&item.template_id).map(|t| TodayTimelineItem {
-                        id: item.id.clone(),
-                        time: time_part(&item.scheduled_at).to_string(),
-                        title: t.title.clone(),
-                        message: extract_json_string_field(&t.event_payload_json, "message")
-                            .unwrap_or_else(|| "提醒内容缺失".to_string()),
-                        status: status_label(&item.status).to_string(),
-                        is_active: false,
-                    })
+                    repository
+                        .get(&item.template_id)
+                        .map(|t| TodayTimelineItem {
+                            id: item.id.clone(),
+                            time: time_part(&item.scheduled_at).to_string(),
+                            title: t.title.clone(),
+                            message: extract_json_string_field(&t.event_payload_json, "message")
+                                .unwrap_or_else(|| "提醒内容缺失".to_string()),
+                            status: status_label(&item.status).to_string(),
+                            is_active: false,
+                        })
                 })
                 .collect::<Vec<_>>();
 
@@ -425,7 +437,8 @@ pub fn get_today_dashboard(
                 next_reminder_time: String::new(),
                 next_reminder_message: "今天的提醒已全部处理完毕，或暂时没有安排。".to_string(),
                 next_reminder_status: "暂无".to_string(),
-                next_reminder_notification_state: "没有待处理的提醒，可以去提醒页添加新模板。".to_string(),
+                next_reminder_notification_state: "没有待处理的提醒，可以去提醒页添加新模板。"
+                    .to_string(),
                 next_reminder_grace_deadline: None,
                 next_reminder_available_actions: Vec::new(),
                 highlighted_status,
@@ -446,15 +459,20 @@ pub fn get_today_dashboard(
     let timeline = today_occurrences
         .iter()
         .filter_map(|item| {
-            repository.get(&item.template_id).map(|timeline_template| TodayTimelineItem {
-                id: item.id.clone(),
-                time: time_part(&item.scheduled_at).to_string(),
-                title: timeline_template.title.clone(),
-                message: extract_json_string_field(&timeline_template.event_payload_json, "message")
+            repository
+                .get(&item.template_id)
+                .map(|timeline_template| TodayTimelineItem {
+                    id: item.id.clone(),
+                    time: time_part(&item.scheduled_at).to_string(),
+                    title: timeline_template.title.clone(),
+                    message: extract_json_string_field(
+                        &timeline_template.event_payload_json,
+                        "message",
+                    )
                     .unwrap_or_else(|| "提醒内容缺失".to_string()),
-                status: status_label(&item.status).to_string(),
-                is_active: item.id == next_occurrence.id,
-            })
+                    status: status_label(&item.status).to_string(),
+                    is_active: item.id == next_occurrence.id,
+                })
         })
         .collect::<Vec<_>>();
 
@@ -495,7 +513,9 @@ pub fn get_today_dashboard(
         next_reminder_message: next_message,
         next_reminder_status: next_status,
         next_reminder_notification_state: notification_state,
-        next_reminder_grace_deadline: Some(time_part(&next_occurrence.grace_deadline_at).to_string()),
+        next_reminder_grace_deadline: Some(
+            time_part(&next_occurrence.grace_deadline_at).to_string(),
+        ),
         next_reminder_available_actions: available_actions,
         highlighted_status,
         today_timeline: timeline,
@@ -529,15 +549,17 @@ pub fn get_calendar_overview(
         .iter()
         .filter(|item| date_part(&item.scheduled_at) == selected_date)
         .filter_map(|item| {
-            repository.get(&item.template_id).map(|template| CalendarEntry {
-                id: item.id.clone(),
-                date: item.scheduled_at.clone(),
-                time: time_part(&item.scheduled_at).to_string(),
-                title: template.title.clone(),
-                message: extract_json_string_field(&template.event_payload_json, "message")
-                    .unwrap_or_else(|| "提醒内容缺失".to_string()),
-                status: status_label(&item.status).to_string(),
-            })
+            repository
+                .get(&item.template_id)
+                .map(|template| CalendarEntry {
+                    id: item.id.clone(),
+                    date: item.scheduled_at.clone(),
+                    time: time_part(&item.scheduled_at).to_string(),
+                    title: template.title.clone(),
+                    message: extract_json_string_field(&template.event_payload_json, "message")
+                        .unwrap_or_else(|| "提醒内容缺失".to_string()),
+                    status: status_label(&item.status).to_string(),
+                })
         })
         .collect::<Vec<_>>();
 
@@ -586,7 +608,10 @@ pub fn create_calendar_event(
                 title: input.title.trim().to_string(),
                 category: Some("calendar".to_string()),
                 event_type: ReminderEventType::Text,
-                event_payload_json: format!(r#"{{"message":"{}"}}"#, escape_json_string(input.message.trim())),
+                event_payload_json: format!(
+                    r#"{{"message":"{}"}}"#,
+                    escape_json_string(input.message.trim())
+                ),
                 repeat_rule_json: format!(r#"{{"type":"none","time":"{}"}}"#, input.time),
                 default_grace_minutes: settings.default_grace_minutes,
                 notify_sound: true,
@@ -611,7 +636,8 @@ pub fn create_calendar_event(
     let next_id = occurrences.len() + 1;
     let normalized_time = normalize_time_input(&input.time)?;
     let scheduled_at = format!("{} {normalized_time}", input.selected_date);
-    let grace_deadline_at = add_minutes_to_timestamp(&scheduled_at, settings.default_grace_minutes.max(0) as u32);
+    let grace_deadline_at =
+        add_minutes_to_timestamp(&scheduled_at, settings.default_grace_minutes.max(0) as u32);
 
     occurrences.push(ReminderOccurrence {
         id: format!("occ_{next_id}"),
@@ -650,7 +676,9 @@ pub fn delete_calendar_event(
 
         occurrences.retain(|item| item.id != input.occurrence_id);
         let template_id = removed_occurrence.template_id.clone();
-        let should_delete_template = !occurrences.iter().any(|item| item.template_id == template_id);
+        let should_delete_template = !occurrences
+            .iter()
+            .any(|item| item.template_id == template_id);
 
         (template_id, should_delete_template)
     };
@@ -663,7 +691,8 @@ pub fn delete_calendar_event(
         action_logs.retain(|item| item.occurrence_id != input.occurrence_id);
     }
 
-    delete_occurrence_and_logs(&database.pool, &input.occurrence_id).map_err(map_persistence_error)?;
+    delete_occurrence_and_logs(&database.pool, &input.occurrence_id)
+        .map_err(map_persistence_error)?;
 
     {
         let mut repository = templates
@@ -677,7 +706,9 @@ pub fn delete_calendar_event(
             == Some("calendar");
 
         if should_delete_template && is_calendar_template {
-            repository.delete(&removed_template_id).map_err(map_template_error)?;
+            repository
+                .delete(&removed_template_id)
+                .map_err(map_template_error)?;
             delete_template(&database.pool, &removed_template_id).map_err(map_persistence_error)?;
         }
     }
@@ -685,7 +716,9 @@ pub fn delete_calendar_event(
     get_calendar_overview(runtime, templates, input.selected_date)
 }
 
-pub fn get_settings(runtime: &AppRuntimeState) -> Result<SettingsViewData, ReminderTemplateCommandError> {
+pub fn get_settings(
+    runtime: &AppRuntimeState,
+) -> Result<SettingsViewData, ReminderTemplateCommandError> {
     let settings = runtime
         .settings
         .lock()
@@ -771,7 +804,10 @@ fn summarize_month_entries(
 
     grouped
         .into_iter()
-        .map(|(date, reminder_count)| CalendarDaySummary { date, reminder_count })
+        .map(|(date, reminder_count)| CalendarDaySummary {
+            date,
+            reminder_count,
+        })
         .collect()
 }
 
@@ -868,26 +904,23 @@ fn apply_today_reminder_action(
         .iter_mut()
         .find(|item| item.status == "grace" && date_part(&item.scheduled_at) == today.as_str())
         .ok_or_else(|| command_error("当前没有宽容中的提醒"))?;
-    let action_time = chrono::Local::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let action_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
     let log: ReminderActionLog = match action {
         TodayReminderAction::Complete => {
             complete_occurrence(occurrence, &action_time).map_err(map_grace_error)?
         }
-        TodayReminderAction::GraceTenMinutes => snooze_occurrence(
-            occurrence,
-            &action_time,
-            10,
-            "grace_10_minutes",
-        )
-        .map_err(map_grace_error)?,
+        TodayReminderAction::GraceTenMinutes => {
+            snooze_occurrence(occurrence, &action_time, 10, "grace_10_minutes")
+                .map_err(map_grace_error)?
+        }
         TodayReminderAction::Snooze(minutes) => {
             snooze_occurrence(occurrence, &action_time, minutes, "snoozed")
                 .map_err(map_grace_error)?
         }
-        TodayReminderAction::Skip => skip_occurrence(occurrence, &action_time).map_err(map_grace_error)?,
+        TodayReminderAction::Skip => {
+            skip_occurrence(occurrence, &action_time).map_err(map_grace_error)?
+        }
     };
 
     save_all_occurrences(&database.pool, &occurrences).map_err(map_persistence_error)?;
@@ -914,7 +947,10 @@ fn map_settings_error(error: SettingsError) -> ReminderTemplateCommandError {
 }
 
 fn date_part(timestamp: &str) -> &str {
-    timestamp.split_once(' ').map(|(date, _)| date).unwrap_or(timestamp)
+    timestamp
+        .split_once(' ')
+        .map(|(date, _)| date)
+        .unwrap_or(timestamp)
 }
 
 fn month_key(date: &str) -> String {
@@ -943,7 +979,7 @@ fn normalize_time_input(time: &str) -> Result<String, ReminderTemplateCommandErr
     NaiveTime::parse_from_str(time, "%H:%M:%S")
         .or_else(|_| NaiveTime::parse_from_str(time, "%H:%M"))
         .map(|parsed| parsed.format("%H:%M:%S").to_string())
-        .map_err(|_| command_error("提醒时间格式不正确"))
+        .map_err(|_| command_error("提醒时间格式必须为 HH:MM 或 HH:MM:SS"))
 }
 
 fn occurrence_priority(status: &str) -> u8 {
@@ -997,6 +1033,7 @@ fn map_persistence_error(error: PersistenceError) -> ReminderTemplateCommandErro
 fn map_grace_error(error: GraceError) -> ReminderTemplateCommandError {
     let message = match error {
         GraceError::InvalidSnoozeMinutes => "稍后提醒仅支持 5/10/15/30 分钟",
+        GraceError::InvalidTimestamp => "提醒时间数据格式无效，请重新保存提醒",
         GraceError::NotInGrace => "当前没有宽容中的提醒",
     };
 
@@ -1119,7 +1156,12 @@ pub fn mark_next_reminder_grace_ten_minutes(
     templates: &ReminderTemplateState,
     database: &DatabaseState,
 ) -> Result<TodayDashboardData, ReminderTemplateCommandError> {
-    apply_today_reminder_action(runtime, templates, database, TodayReminderAction::GraceTenMinutes)
+    apply_today_reminder_action(
+        runtime,
+        templates,
+        database,
+        TodayReminderAction::GraceTenMinutes,
+    )
 }
 
 pub fn snooze_next_reminder(
@@ -1128,7 +1170,12 @@ pub fn snooze_next_reminder(
     database: &DatabaseState,
     minutes: u32,
 ) -> Result<TodayDashboardData, ReminderTemplateCommandError> {
-    apply_today_reminder_action(runtime, templates, database, TodayReminderAction::Snooze(minutes))
+    apply_today_reminder_action(
+        runtime,
+        templates,
+        database,
+        TodayReminderAction::Snooze(minutes),
+    )
 }
 
 pub fn skip_next_reminder(
@@ -1249,13 +1296,14 @@ mod tests {
     use std::sync::MutexGuard;
 
     use crate::commands::app::{
-        create_calendar_event, default_app_settings, delete_calendar_event, duplicate_reminder_template,
-        get_calendar_overview, get_settings, get_today_dashboard, list_reminder_templates,
-        mark_next_reminder_completed, mark_next_reminder_grace_ten_minutes,
-        seed_occurrences, seed_reminder_templates, skip_next_reminder, snooze_next_reminder,
-        toggle_reminder_template, update_reminder_template, update_settings, CreateCalendarEventInput,
-        CreateReminderTemplateCommandInput, DeleteCalendarEventInput, UpdateReminderTemplateCommandInput,
-        UpdateSettingsInput,
+        create_calendar_event, default_app_settings, delete_calendar_event,
+        duplicate_reminder_template, get_calendar_overview, get_settings, get_today_dashboard,
+        list_reminder_templates, mark_next_reminder_completed,
+        mark_next_reminder_grace_ten_minutes, seed_occurrences, seed_reminder_templates,
+        skip_next_reminder, snooze_next_reminder, toggle_reminder_template,
+        update_reminder_template, update_settings, CreateCalendarEventInput,
+        CreateReminderTemplateCommandInput, DeleteCalendarEventInput,
+        UpdateReminderTemplateCommandInput, UpdateSettingsInput,
     };
     use crate::db::migration::initialize_database;
     use crate::db::persistence::{bootstrap_defaults, load_occurrences};
@@ -1302,7 +1350,10 @@ mod tests {
         let _ = std::fs::remove_file(database_path);
     }
 
-    fn lock_state(state: &ReminderTemplateState) -> MutexGuard<'_, crate::db::reminder_template_repository::InMemoryReminderTemplateRepository> {
+    fn lock_state(
+        state: &ReminderTemplateState,
+    ) -> MutexGuard<'_, crate::db::reminder_template_repository::InMemoryReminderTemplateRepository>
+    {
         state.repository.lock().expect("state lock should succeed")
     }
 
@@ -1329,7 +1380,12 @@ mod tests {
             .expect("toggle should succeed");
 
         assert!(!updated.enabled);
-        assert!(!lock_state(&state).get("tpl_1").expect("template should exist").enabled);
+        assert!(
+            !lock_state(&state)
+                .get("tpl_1")
+                .expect("template should exist")
+                .enabled
+        );
         cleanup_database_state(database);
     }
 
@@ -1418,7 +1474,10 @@ mod tests {
         assert_eq!(dashboard.next_reminder_status, "宽容中");
         assert_eq!(dashboard.highlighted_status, "宽容中");
         assert_eq!(dashboard.next_reminder_available_actions.len(), 4);
-        assert!(dashboard.today_timeline.iter().any(|item| item.title == "喝水提醒"));
+        assert!(dashboard
+            .today_timeline
+            .iter()
+            .any(|item| item.title == "喝水提醒"));
         assert!(dashboard.recent_actions.is_empty());
     }
 
@@ -1434,7 +1493,8 @@ mod tests {
         let runtime = AppRuntimeState::new(completed_occurrences, vec![], default_app_settings());
         let templates = create_state();
 
-        let dashboard = get_today_dashboard(&runtime, &templates).expect("empty dashboard should load without error");
+        let dashboard = get_today_dashboard(&runtime, &templates)
+            .expect("empty dashboard should load without error");
 
         assert_eq!(dashboard.active_reminder_id, "");
         assert_eq!(dashboard.next_reminder_title, "暂无待处理提醒");
@@ -1464,8 +1524,12 @@ mod tests {
     fn returns_pending_dashboard_time_from_snoozed_until() {
         let mut occurrences = seed_occurrences();
         occurrences[0].status = "pending".to_string();
-        occurrences[0].snoozed_until = Some(format!("{} 08:05:00", chrono::Local::now().format("%Y-%m-%d")));
-        occurrences[0].grace_deadline_at = format!("{} 08:15:00", chrono::Local::now().format("%Y-%m-%d"));
+        occurrences[0].snoozed_until = Some(format!(
+            "{} 08:05:00",
+            chrono::Local::now().format("%Y-%m-%d")
+        ));
+        occurrences[0].grace_deadline_at =
+            format!("{} 08:15:00", chrono::Local::now().format("%Y-%m-%d"));
         let runtime = AppRuntimeState::new(occurrences, vec![], default_app_settings());
         let templates = create_state();
 
@@ -1488,7 +1552,9 @@ mod tests {
         let persisted = load_occurrences(&database.pool).expect("occurrences should persist");
 
         assert_eq!(dashboard.highlighted_status, "已完成");
-        assert!(persisted.iter().any(|item| item.id == "occ_1" && item.status == "completed"));
+        assert!(persisted
+            .iter()
+            .any(|item| item.id == "occ_1" && item.status == "completed"));
         cleanup_database_state(database);
     }
 
@@ -1608,12 +1674,14 @@ mod tests {
             return;
         };
 
-        let dashboard = skip_next_reminder(&runtime, &templates, &database)
-            .expect("skip should succeed");
+        let dashboard =
+            skip_next_reminder(&runtime, &templates, &database).expect("skip should succeed");
         let persisted = load_occurrences(&database.pool).expect("occurrences should persist");
 
         assert_eq!(dashboard.highlighted_status, "已跳过");
-        assert!(persisted.iter().any(|item| item.id == "occ_1" && item.status == "skipped"));
+        assert!(persisted
+            .iter()
+            .any(|item| item.id == "occ_1" && item.status == "skipped"));
         cleanup_database_state(database);
     }
 
@@ -1687,7 +1755,10 @@ mod tests {
         )
         .expect("calendar event with seconds should be created");
 
-        assert!(overview.entries.iter().any(|item| item.title == "秒级提醒" && item.time == "14:30:45"));
+        assert!(overview
+            .entries
+            .iter()
+            .any(|item| item.title == "秒级提醒" && item.time == "14:30:45"));
 
         let persisted = load_occurrences(&database.pool).expect("occurrences should persist");
         assert!(persisted.iter().any(|item| {
@@ -1708,7 +1779,10 @@ mod tests {
         };
 
         {
-            let mut settings = runtime.settings.lock().expect("settings lock should succeed");
+            let mut settings = runtime
+                .settings
+                .lock()
+                .expect("settings lock should succeed");
             settings.default_grace_minutes = 10;
         }
 
@@ -1753,7 +1827,8 @@ mod tests {
         )
         .expect("calendar event should be deleted");
 
-        let persisted_occurrences = load_occurrences(&database.pool).expect("occurrences should persist");
+        let persisted_occurrences =
+            load_occurrences(&database.pool).expect("occurrences should persist");
 
         assert!(!persisted_occurrences.iter().any(|item| item.id == "occ_1"));
         assert!(lock_state(&templates).get("tpl_1").is_some());

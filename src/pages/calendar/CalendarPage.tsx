@@ -249,9 +249,10 @@ export function CalendarPage() {
             </label>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
               <label className="calendar-input-group" style={{ marginBottom: 0, flex: 1 }}>
-                <span>触发时间</span>
+                <span>触发时间（支持秒）</span>
                 <input
                   aria-label="触发时间"
+                  step="1"
                   type="time"
                   value={draftTime}
                   onChange={(event) => setDraftTime(event.target.value)}

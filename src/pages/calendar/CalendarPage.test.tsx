@@ -72,6 +72,8 @@ describe('CalendarPage', () => {
     render(<CalendarPage />)
 
     await screen.findByText('2026 年 4 月')
+    expect(screen.getByText('触发时间（支持秒）')).toBeInTheDocument()
+    expect(screen.getByLabelText('触发时间')).toHaveAttribute('step', '1')
     fireEvent.change(screen.getByLabelText('事件标题'), { target: { value: '秒级整理' } })
     fireEvent.change(screen.getByLabelText('事件内容'), { target: { value: '精确到秒地提醒收尾' } })
     fireEvent.change(screen.getByLabelText('触发时间'), { target: { value: '19:30:45' } })

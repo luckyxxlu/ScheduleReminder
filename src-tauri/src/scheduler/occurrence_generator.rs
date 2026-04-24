@@ -7,6 +7,8 @@ use crate::models::reminder_template::ReminderTemplate;
 
 use super::repeat_rule::{parse_repeat_rule, RepeatRule};
 
+const TIME_WITH_SECONDS_COLON_COUNT: usize = 2;
+
 pub fn generate_occurrences(
     template: &ReminderTemplate,
     start_date: &str,
@@ -21,7 +23,7 @@ pub fn generate_occurrences(
     let mut keys = HashSet::new();
 
     for (index, date) in dates.into_iter().enumerate() {
-        let scheduled_at = if time.matches(':').count() == 2 {
+        let scheduled_at = if time.matches(':').count() == TIME_WITH_SECONDS_COLON_COUNT {
             format!("{date} {time}")
         } else {
             format!("{date} {time}:00")
@@ -238,10 +240,7 @@ mod tests {
         let error = generate_occurrences(&template, "2026-04-22", "08:00", 1)
             .expect_err("invalid repeat rule should fail");
 
-        assert_eq!(
-            error,
-            ReminderOccurrenceError::InvalidRepeatRule
-        );
+        assert_eq!(error, ReminderOccurrenceError::InvalidRepeatRule);
     }
 
     #[test]
@@ -252,5 +251,16 @@ mod tests {
             .expect_err("duplicate slot should fail");
 
         assert_eq!(error, ReminderOccurrenceError::DuplicateOccurrence);
+    }
+
+    #[test]
+    fn preserves_seconds_precision_in_generated_occurrences() {
+        let template = template_with_rule(r#"{"type":"daily","interval":1}"#);
+
+        let occurrences = generate_occurrences(&template, "2026-04-22", "08:00:45", 2)
+            .expect("seconds precision should be preserved");
+
+        assert_eq!(occurrences[0].scheduled_at, "2026-04-22 08:00:45");
+        assert_eq!(occurrences[1].scheduled_at, "2026-04-23 08:00:45");
     }
 }

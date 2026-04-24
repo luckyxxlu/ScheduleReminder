@@ -2,7 +2,7 @@
  * Extracts a human-readable error message from an unknown error value.
  *
  * Tauri command errors are serialized as plain objects `{ message: "..." }`,
- * not as JavaScript `Error` instances. This helper handles all three shapes:
+ * not as JavaScript `Error` instances. This helper handles both common shapes:
  *   - `Error` instance (browser-style thrown error)
  *   - plain object with a `message` string field (Tauri command rejection)
  * Falls back to `fallback` when no message can be extracted.
