@@ -19,9 +19,7 @@ pub fn bootstrap_defaults(
     occurrences: &[ReminderOccurrence],
     settings: &AppSettings,
 ) -> Result<(), PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
 
     if count_rows(&connection, "reminder_templates")? == 0 {
         insert_templates(&connection, templates)?;
@@ -38,12 +36,8 @@ pub fn bootstrap_defaults(
     Ok(())
 }
 
-pub fn load_template_repository(
-    pool: &DbPool,
-) -> Result<InMemoryReminderTemplateRepository, PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+pub fn load_template_repository(pool: &DbPool) -> Result<InMemoryReminderTemplateRepository, PersistenceError> {
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
     let mut statement = connection
         .prepare(
             "SELECT id, title, category, event_type, event_payload_json, repeat_rule_json, default_grace_minutes, notify_sound, note, enabled FROM reminder_templates ORDER BY id",
@@ -75,9 +69,7 @@ pub fn load_template_repository(
 }
 
 pub fn load_occurrences(pool: &DbPool) -> Result<Vec<ReminderOccurrence>, PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
     let mut statement = connection
         .prepare(
             "SELECT id, template_id, scheduled_at, grace_deadline_at, snoozed_until, status, handled_at FROM reminder_occurrences ORDER BY scheduled_at, id",
@@ -103,9 +95,7 @@ pub fn load_occurrences(pool: &DbPool) -> Result<Vec<ReminderOccurrence>, Persis
 }
 
 pub fn load_action_logs(pool: &DbPool) -> Result<Vec<ReminderActionLog>, PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
     let mut statement = connection
         .prepare(
             "SELECT id, occurrence_id, action, action_at, payload_json FROM reminder_action_logs ORDER BY action_at DESC, id DESC",
@@ -129,9 +119,7 @@ pub fn load_action_logs(pool: &DbPool) -> Result<Vec<ReminderActionLog>, Persist
 }
 
 pub fn load_settings(pool: &DbPool) -> Result<AppSettings, PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
 
     connection
         .query_row(
@@ -153,37 +141,23 @@ pub fn load_settings(pool: &DbPool) -> Result<AppSettings, PersistenceError> {
         .map_err(|_| PersistenceError::StatementExecutionFailed)
 }
 
-pub fn save_all_templates(
-    pool: &DbPool,
-    templates: &[ReminderTemplate],
-) -> Result<(), PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+pub fn save_all_templates(pool: &DbPool, templates: &[ReminderTemplate]) -> Result<(), PersistenceError> {
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
     insert_templates(&connection, templates)
 }
 
-pub fn save_all_occurrences(
-    pool: &DbPool,
-    occurrences: &[ReminderOccurrence],
-) -> Result<(), PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+pub fn save_all_occurrences(pool: &DbPool, occurrences: &[ReminderOccurrence]) -> Result<(), PersistenceError> {
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
     insert_occurrences(&connection, occurrences)
 }
 
 pub fn save_settings(pool: &DbPool, settings: &AppSettings) -> Result<(), PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
     save_settings_with_connection(&connection, settings)
 }
 
 pub fn save_action_log(pool: &DbPool, log: &ReminderActionLog) -> Result<(), PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
 
     connection
         .execute(
@@ -199,9 +173,7 @@ pub fn delete_occurrence_and_logs(
     pool: &DbPool,
     occurrence_id: &str,
 ) -> Result<(), PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
     let transaction = connection
         .unchecked_transaction()
         .map_err(|_| PersistenceError::StatementExecutionFailed)?;
@@ -225,9 +197,7 @@ pub fn delete_occurrence_and_logs(
 }
 
 pub fn delete_template(pool: &DbPool, template_id: &str) -> Result<(), PersistenceError> {
-    let connection = pool
-        .lock()
-        .map_err(|_| PersistenceError::DatabaseUnavailable)?;
+    let connection = pool.lock().map_err(|_| PersistenceError::DatabaseUnavailable)?;
 
     connection
         .execute(
@@ -241,9 +211,7 @@ pub fn delete_template(pool: &DbPool, template_id: &str) -> Result<(), Persisten
 
 fn count_rows(connection: &rusqlite::Connection, table: &str) -> Result<i64, PersistenceError> {
     connection
-        .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
-            row.get(0)
-        })
+        .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
         .map_err(|_| PersistenceError::StatementExecutionFailed)
 }
 
@@ -336,9 +304,5 @@ fn event_type_key(value: &ReminderEventType) -> &'static str {
 }
 
 fn bool_to_flag(value: bool) -> i64 {
-    if value {
-        1
-    } else {
-        0
-    }
+    if value { 1 } else { 0 }
 }

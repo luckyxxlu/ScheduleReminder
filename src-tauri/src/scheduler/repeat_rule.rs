@@ -19,8 +19,7 @@ pub enum RepeatRuleError {
 pub fn parse_repeat_rule(input: &str) -> Result<RepeatRule, RepeatRuleError> {
     let normalized = input.replace(' ', "");
 
-    let rule_type =
-        extract_string_value(&normalized, "type").ok_or(RepeatRuleError::MissingType)?;
+    let rule_type = extract_string_value(&normalized, "type").ok_or(RepeatRuleError::MissingType)?;
 
     match rule_type.as_str() {
         "none" => Ok(RepeatRule::None),
@@ -107,15 +106,16 @@ mod tests {
 
     #[test]
     fn parses_daily_rule() {
-        let rule =
-            parse_repeat_rule(r#"{"type":"daily","interval":1}"#).expect("daily rule should parse");
+        let rule = parse_repeat_rule(r#"{"type":"daily","interval":1}"#)
+            .expect("daily rule should parse");
 
         assert_eq!(rule, RepeatRule::Daily { interval: 1 });
     }
 
     #[test]
     fn parses_workdays_rule() {
-        let rule = parse_repeat_rule(r#"{"type":"workdays"}"#).expect("workdays rule should parse");
+        let rule = parse_repeat_rule(r#"{"type":"workdays"}"#)
+            .expect("workdays rule should parse");
 
         assert_eq!(rule, RepeatRule::Workdays);
     }

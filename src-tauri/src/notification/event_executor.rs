@@ -29,11 +29,7 @@ pub fn build_notification_payload(
             Ok(NotificationPayload {
                 title: template.title.clone(),
                 body: format!("{} | 原定时间 {}", message, occurrence.scheduled_at),
-                actions: vec![
-                    "完成".to_string(),
-                    "延后".to_string(),
-                    "打开详情".to_string(),
-                ],
+                actions: vec!["完成".to_string(), "延后".to_string(), "打开详情".to_string()],
             })
         }
         ReminderEventType::SystemAction => {
@@ -49,11 +45,7 @@ pub fn build_notification_payload(
             Ok(NotificationPayload {
                 title: template.title.clone(),
                 body: format!("{} | 将在确认后执行关机", message),
-                actions: vec![
-                    "延后".to_string(),
-                    "取消".to_string(),
-                    "打开详情".to_string(),
-                ],
+                actions: vec!["延后".to_string(), "取消".to_string(), "打开详情".to_string()],
             })
         }
     }
@@ -133,8 +125,7 @@ mod tests {
             title: "关机提醒".to_string(),
             category: Some("system".to_string()),
             event_type: ReminderEventType::SystemAction,
-            event_payload_json: r#"{"action":"shutdown","message":"到时间了，准备关机休息"}"#
-                .to_string(),
+            event_payload_json: r#"{"action":"shutdown","message":"到时间了，准备关机休息"}"#.to_string(),
             repeat_rule_json: r#"{"type":"daily","interval":1}"#.to_string(),
             default_grace_minutes: 10,
             notify_sound: true,
@@ -174,26 +165,16 @@ mod tests {
 
     #[test]
     fn confirms_shutdown_action_only_when_confirmed() {
-        let log = confirm_system_action(
-            &shutdown_template(),
-            &occurrence(),
-            true,
-            "2026-04-22 22:31:00",
-        )
-        .expect("confirmed shutdown should succeed");
+        let log = confirm_system_action(&shutdown_template(), &occurrence(), true, "2026-04-22 22:31:00")
+            .expect("confirmed shutdown should succeed");
 
         assert_eq!(log.action, "shutdown_confirmed");
     }
 
     #[test]
     fn rejects_shutdown_without_confirmation() {
-        let error = confirm_system_action(
-            &shutdown_template(),
-            &occurrence(),
-            false,
-            "2026-04-22 22:31:00",
-        )
-        .expect_err("shutdown without confirmation should fail");
+        let error = confirm_system_action(&shutdown_template(), &occurrence(), false, "2026-04-22 22:31:00")
+            .expect_err("shutdown without confirmation should fail");
 
         assert_eq!(error, EventExecutionError::MissingConfirmation);
     }
