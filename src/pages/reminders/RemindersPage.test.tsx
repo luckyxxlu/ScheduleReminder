@@ -165,7 +165,9 @@ describe('RemindersPage', () => {
   it('creates reminder template with custom content', async () => {
     render(<RemindersPage />)
 
-    fireEvent.change(await screen.findByLabelText('提醒标题'), { target: { value: '深度工作' } })
+    await screen.findByText('喝水提醒')
+    fireEvent.click(screen.getByRole('button', { name: '新建提醒模板' }))
+    fireEvent.change(screen.getByLabelText('提醒标题'), { target: { value: '深度工作' } })
     fireEvent.change(screen.getByLabelText('提醒内容'), { target: { value: '开始 45 分钟专注工作' } })
     fireEvent.change(screen.getByLabelText('提醒分类'), { target: { value: 'focus' } })
     fireEvent.change(screen.getByLabelText('模板时间'), { target: { value: '14:30' } })
@@ -188,7 +190,9 @@ describe('RemindersPage', () => {
   it('creates one-time reminder template with none repeat rule', async () => {
     render(<RemindersPage />)
 
-    fireEvent.change(await screen.findByLabelText('提醒标题'), { target: { value: '单次复盘' } })
+    await screen.findByText('喝水提醒')
+    fireEvent.click(screen.getByRole('button', { name: '新建提醒模板' }))
+    fireEvent.change(screen.getByLabelText('提醒标题'), { target: { value: '单次复盘' } })
     fireEvent.change(screen.getByLabelText('提醒内容'), { target: { value: '今天下班前做一次复盘' } })
     fireEvent.change(screen.getByLabelText('重复方式'), { target: { value: 'none' } })
     fireEvent.change(screen.getByLabelText('模板时间'), { target: { value: '18:30' } })
@@ -209,7 +213,9 @@ describe('RemindersPage', () => {
   it('creates workday reminder template with workdays repeat rule', async () => {
     render(<RemindersPage />)
 
-    fireEvent.change(await screen.findByLabelText('提醒标题'), { target: { value: '工间站立' } })
+    await screen.findByText('喝水提醒')
+    fireEvent.click(screen.getByRole('button', { name: '新建提醒模板' }))
+    fireEvent.change(screen.getByLabelText('提醒标题'), { target: { value: '工间站立' } })
     fireEvent.change(screen.getByLabelText('提醒内容'), { target: { value: '站起来活动两分钟' } })
     fireEvent.change(screen.getByLabelText('重复方式'), { target: { value: 'workdays' } })
     fireEvent.change(screen.getByLabelText('模板时间'), { target: { value: '15:00' } })
@@ -232,7 +238,9 @@ describe('RemindersPage', () => {
 
     render(<RemindersPage />)
 
-    fireEvent.change(await screen.findByLabelText('提醒标题'), { target: { value: '深度工作' } })
+    await screen.findByText('喝水提醒')
+    fireEvent.click(screen.getByRole('button', { name: '新建提醒模板' }))
+    fireEvent.change(screen.getByLabelText('提醒标题'), { target: { value: '深度工作' } })
     fireEvent.change(screen.getByLabelText('提醒内容'), { target: { value: '开始 45 分钟专注工作' } })
     fireEvent.click(screen.getByRole('button', { name: '保存模板' }))
 
@@ -244,7 +252,9 @@ describe('RemindersPage', () => {
 
     render(<RemindersPage />)
 
-    fireEvent.change(await screen.findByLabelText('提醒标题'), { target: { value: '深度工作' } })
+    await screen.findByText('喝水提醒')
+    fireEvent.click(screen.getByRole('button', { name: '新建提醒模板' }))
+    fireEvent.change(screen.getByLabelText('提醒标题'), { target: { value: '深度工作' } })
     fireEvent.change(screen.getByLabelText('提醒内容'), { target: { value: '开始 45 分钟专注工作' } })
     fireEvent.click(screen.getByRole('button', { name: '保存模板' }))
 
@@ -391,7 +401,9 @@ describe('RemindersPage', () => {
   it('shows validation message before creating template with missing fields', async () => {
     render(<RemindersPage />)
 
-    fireEvent.change(await screen.findByLabelText('提醒标题'), { target: { value: '   ' } })
+    await screen.findByText('喝水提醒')
+    fireEvent.click(screen.getByRole('button', { name: '新建提醒模板' }))
+    fireEvent.change(screen.getByLabelText('提醒标题'), { target: { value: '   ' } })
     fireEvent.change(screen.getByLabelText('提醒内容'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: '保存模板' }))
 
@@ -483,16 +495,16 @@ describe('RemindersPage', () => {
     expect(await screen.findByText('复制提醒模板失败')).toBeInTheDocument()
   })
 
-  it('resets form when leaving edit mode from header action', async () => {
+  it('closes modal and clears form when cancel is clicked in edit modal', async () => {
     render(<RemindersPage />)
 
     fireEvent.click(await screen.findByRole('button', { name: '编辑 喝水提醒' }))
     expect(screen.getByDisplayValue('喝水提醒')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '开始新建' }))
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
 
     expect(screen.queryByDisplayValue('喝水提醒')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '新建提醒模板' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '保存修改' })).not.toBeInTheDocument()
   })
 
   it('navigates to calendar from secondary action', async () => {
@@ -524,7 +536,7 @@ describe('RemindersPage', () => {
     expect(await screen.findByText('更新服务不可用')).toBeInTheDocument()
   })
 
-  it('does nothing when clicking header action outside editing mode', async () => {
+  it('opens create modal when clicking new template button', async () => {
     render(<RemindersPage />)
 
     await screen.findByText('喝水提醒')

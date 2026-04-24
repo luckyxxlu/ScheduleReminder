@@ -26,7 +26,7 @@ export function CalendarPage() {
   const [overview, setOverview] = useState<CalendarOverviewData | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
   const [draftMessage, setDraftMessage] = useState('')
-  const [draftTime, setDraftTime] = useState(() => getCurrentTimeWithSeconds())
+  const [draftTime, setDraftTime] = useState(() => getCurrentTime())
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -243,25 +243,24 @@ export function CalendarPage() {
               <span>事件标题</span>
               <input aria-label="事件标题" value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} />
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: 12 }}>
-              <label className="calendar-input-group" style={{ marginBottom: 0 }}>
+            <label className="calendar-input-group" style={{ marginBottom: 12 }}>
+              <span>提醒内容</span>
+              <input aria-label="事件内容" value={draftMessage} onChange={(event) => setDraftMessage(event.target.value)} />
+            </label>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+              <label className="calendar-input-group" style={{ marginBottom: 0, flex: 1 }}>
                 <span>触发时间</span>
                 <input
                   aria-label="触发时间"
                   type="time"
-                  step="1"
                   value={draftTime}
                   onChange={(event) => setDraftTime(event.target.value)}
                 />
               </label>
-              <label className="calendar-input-group" style={{ marginBottom: 0 }}>
-                <span>提醒内容</span>
-                <input aria-label="事件内容" value={draftMessage} onChange={(event) => setDraftMessage(event.target.value)} />
-              </label>
+              <button className="primary-button" style={{ flexShrink: 0, marginBottom: 0 }} disabled={isSubmitting} type="button" onClick={() => void handleCreateEvent()}>
+                {isSubmitting ? '正在保存...' : `添加到 ${selectedDate}`}
+              </button>
             </div>
-            <button className="primary-button calendar-submit-button" disabled={isSubmitting} type="button" onClick={() => void handleCreateEvent()}>
-              {isSubmitting ? '正在保存...' : `添加到 ${selectedDate}`}
-            </button>
           </div>
         </aside>
       </div>
@@ -298,10 +297,10 @@ function buildCalendarCells(monthKey: string, monthEntries: CalendarOverviewData
   return cells
 }
 
-function getCurrentTimeWithSeconds() {
+function getCurrentTime() {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function normalizeWeekday(day: number) {
