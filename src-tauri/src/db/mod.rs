@@ -158,4 +158,78 @@ mod tests {
         drop(connection);
         let _ = std::fs::remove_file(database_path);
     }
+
+    #[test]
+    fn migrations_upgrade_legacy_sqlite_schema() {
+        let database_path = std::env::temp_dir().join(format!(
+            "schedule_reminder_legacy_db_test_{}.db",
+            std::process::id()
+        ));
+        let database_url = format!("sqlite://{}", database_path.display());
+        let pool = create_pool(&database_url).expect("database should open");
+
+        {
+            let connection = pool.lock().expect("connection should be available");
+            connection
+                .execute(
+                    "CREATE TABLE reminder_templates (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, category TEXT NULL, event_type TEXT NOT NULL, event_payload_json TEXT NOT NULL, repeat_rule_json TEXT NOT NULL, default_grace_minutes INTEGER NOT NULL)",
+                    [],
+                )
+                .expect("legacy reminder_templates should be created");
+            connection
+                .execute(
+                    "CREATE TABLE reminder_occurrences (id TEXT PRIMARY KEY NOT NULL, template_id TEXT NOT NULL, scheduled_at TEXT NOT NULL, grace_deadline_at TEXT NOT NULL, status TEXT NOT NULL, FOREIGN KEY(template_id) REFERENCES reminder_templates(id), UNIQUE(template_id, scheduled_at))",
+                    [],
+                )
+                .expect("legacy reminder_occurrences should be created");
+            connection
+                .execute(
+                    "CREATE TABLE reminder_action_logs (id TEXT PRIMARY KEY NOT NULL, occurrence_id TEXT NOT NULL, action TEXT NOT NULL, action_at TEXT NOT NULL, FOREIGN KEY(occurrence_id) REFERENCES reminder_occurrences(id))",
+                    [],
+                )
+                .expect("legacy reminder_action_logs should be created");
+            connection
+                .execute(
+                    "CREATE TABLE app_settings (id INTEGER PRIMARY KEY NOT NULL, default_grace_minutes INTEGER NOT NULL, startup_with_windows INTEGER NOT NULL DEFAULT 0)",
+                    [],
+                )
+                .expect("legacy app_settings should be created");
+        }
+
+        run_migrations(&pool).expect("legacy schema should upgrade");
+
+        let connection = pool.lock().expect("connection should be available");
+        let reminder_template_columns = table_columns(&connection, "reminder_templates");
+        let reminder_occurrence_columns = table_columns(&connection, "reminder_occurrences");
+        let action_log_columns = table_columns(&connection, "reminder_action_logs");
+        let settings_columns = table_columns(&connection, "app_settings");
+
+        assert!(reminder_template_columns.contains(&"notify_sound".to_string()));
+        assert!(reminder_template_columns.contains(&"enabled".to_string()));
+        assert!(reminder_template_columns.contains(&"created_at".to_string()));
+        assert!(reminder_template_columns.contains(&"updated_at".to_string()));
+        assert!(reminder_occurrence_columns.contains(&"snoozed_until".to_string()));
+        assert!(reminder_occurrence_columns.contains(&"handled_at".to_string()));
+        assert!(reminder_occurrence_columns.contains(&"created_at".to_string()));
+        assert!(action_log_columns.contains(&"payload_json".to_string()));
+        assert!(settings_columns.contains(&"tray_enabled".to_string()));
+        assert!(settings_columns.contains(&"theme".to_string()));
+        assert!(settings_columns.contains(&"updated_at".to_string()));
+
+        drop(connection);
+        let _ = std::fs::remove_file(database_path);
+    }
+
+    fn table_columns(connection: &rusqlite::Connection, table: &str) -> Vec<String> {
+        let pragma = format!("PRAGMA table_info({table})");
+        let mut statement = connection
+            .prepare(&pragma)
+            .expect("table info pragma should be readable");
+
+        statement
+            .query_map([], |row| row.get::<_, String>(1))
+            .expect("table info query should succeed")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("columns should be collectable")
+    }
 }

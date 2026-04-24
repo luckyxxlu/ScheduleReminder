@@ -11,6 +11,8 @@ import {
 } from '../../services/reminderTemplates'
 import { extractErrorMessage } from '../../utils/errors'
 
+const defaultTemplateTime = '09:00'
+
 export function RemindersPage() {
   const navigate = useNavigate()
   const [templates, setTemplates] = useState<ReminderTemplateListItem[]>([])
@@ -19,7 +21,7 @@ export function RemindersPage() {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [category, setCategory] = useState('')
-  const [time, setTime] = useState('09:00')
+  const [time, setTime] = useState(defaultTemplateTime)
   const [repeatType, setRepeatType] = useState<'none' | 'daily' | 'workdays'>('daily')
   const [graceMinutes, setGraceMinutes] = useState('10')
   const [note, setNote] = useState('')
@@ -59,6 +61,24 @@ export function RemindersPage() {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      return
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeModal()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isModalOpen])
 
   async function handleToggle(template: ReminderTemplateListItem) {
     try {
@@ -102,12 +122,7 @@ export function RemindersPage() {
         title,
         message,
         category,
-        repeatRuleJson:
-          repeatType === 'none'
-            ? `{"type":"none","time":"${time}"}`
-            : repeatType === 'workdays'
-              ? `{"type":"workdays","time":"${time}"}`
-              : `{"type":"daily","interval":1,"time":"${time}"}`,
+        repeatRuleJson: buildRepeatRuleJson(repeatType, time),
         defaultGraceMinutes: Number(graceMinutes),
         note,
       })
@@ -142,12 +157,7 @@ export function RemindersPage() {
         title,
         message,
         category,
-        repeatRuleJson:
-          repeatType === 'none'
-            ? `{"type":"none","time":"${time}"}`
-            : repeatType === 'workdays'
-              ? `{"type":"workdays","time":"${time}"}`
-              : `{"type":"daily","interval":1,"time":"${time}"}`,
+        repeatRuleJson: buildRepeatRuleJson(repeatType, time),
         defaultGraceMinutes: Number(graceMinutes),
         note,
         enabled,
@@ -198,7 +208,7 @@ export function RemindersPage() {
     setTitle('')
     setMessage('')
     setCategory('')
-    setTime('09:00')
+    setTime(defaultTemplateTime)
     setRepeatType('daily')
     setGraceMinutes('10')
     setNote('')
@@ -269,12 +279,20 @@ export function RemindersPage() {
 
       {isModalOpen ? (
         <div className="reminder-overlay-backdrop" onClick={closeModal}>
-          <div className="reminder-overlay-panel" onClick={(event) => event.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+          <div
+            aria-describedby="reminder-template-modal-description"
+            aria-labelledby="reminder-template-modal-title"
+            aria-modal="true"
+            className="reminder-overlay-panel"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            style={{ maxHeight: '90vh', overflowY: 'auto' }}
+          >
             <span className="panel-label">快速创建</span>
-            <strong className="panel-title" style={{ display: 'block', marginBottom: 8 }}>
+            <strong className="panel-title" id="reminder-template-modal-title" style={{ display: 'block', marginBottom: 8 }}>
               {editingTemplateId ? '编辑提醒模板' : '新建提醒模板'}
             </strong>
-            <p className="panel-text">标题和提醒内容完全分开填写。你可以把标题写成"深度工作"，内容写成"开始 45 分钟专注工作"。</p>
+            <p className="panel-text" id="reminder-template-modal-description">标题和提醒内容完全分开填写。你可以把标题写成"深度工作"，内容写成"开始 45 分钟专注工作"。</p>
             {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
             <div className="reminder-form-grid" style={{ marginTop: 24 }}>
               <label className="calendar-input-group">
@@ -291,7 +309,7 @@ export function RemindersPage() {
               </label>
               <label className="calendar-input-group">
                 <span>时间</span>
-                <input aria-label="模板时间" type="time" value={time} onChange={(event) => setTime(event.target.value)} />
+                <input aria-label="模板时间" step="1" type="time" value={time} onChange={(event) => setTime(event.target.value)} />
               </label>
               <label className="calendar-input-group">
                 <span>重复方式</span>
@@ -345,4 +363,16 @@ function extractRepeatType(repeatRuleJson: string): 'none' | 'daily' | 'workdays
 function extractTimeFromRepeatRule(repeatRuleJson: string, fallback = '09:00') {
   const match = repeatRuleJson.match(/"time":"(\d{2}:\d{2}(:\d{2})?)"/)
   return match?.[1] ?? fallback
+}
+
+function buildRepeatRuleJson(repeatType: 'none' | 'daily' | 'workdays', time: string) {
+  if (repeatType === 'none') {
+    return JSON.stringify({ type: 'none', time })
+  }
+
+  if (repeatType === 'workdays') {
+    return JSON.stringify({ type: 'workdays', time })
+  }
+
+  return JSON.stringify({ type: 'daily', interval: 1, time })
 }

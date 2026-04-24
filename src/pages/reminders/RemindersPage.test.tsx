@@ -187,6 +187,28 @@ describe('RemindersPage', () => {
     })
   })
 
+  it('creates reminder template with seconds precision', async () => {
+    render(<RemindersPage />)
+
+    await screen.findByText('喝水提醒')
+    fireEvent.click(screen.getByRole('button', { name: '新建提醒模板' }))
+    fireEvent.change(screen.getByLabelText('提醒标题'), { target: { value: '秒级提醒' } })
+    fireEvent.change(screen.getByLabelText('提醒内容'), { target: { value: '精确到秒触发' } })
+    fireEvent.change(screen.getByLabelText('模板时间'), { target: { value: '14:30:45' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存模板' }))
+
+    await waitFor(() => {
+      expect(mockedCreateReminderTemplate).toHaveBeenCalledWith({
+        title: '秒级提醒',
+        message: '精确到秒触发',
+        category: '',
+        repeatRuleJson: '{"type":"daily","interval":1,"time":"14:30:45"}',
+        defaultGraceMinutes: 10,
+        note: '',
+      })
+    })
+  })
+
   it('creates one-time reminder template with none repeat rule', async () => {
     render(<RemindersPage />)
 
@@ -284,6 +306,38 @@ describe('RemindersPage', () => {
         enabled: true,
       })
       expect(screen.getByText('已更新提醒模板 补水提醒')).toBeInTheDocument()
+    })
+  })
+
+  it('preserves seconds when editing an existing template', async () => {
+    mockedListReminderTemplates.mockResolvedValueOnce([
+      {
+        ...templates[0],
+        id: 'tpl_seconds',
+        title: '秒级喝水提醒',
+        repeatRuleJson: '{"type":"daily","interval":1,"time":"09:30:45"}',
+        scheduleSummary: '每天 09:30:45',
+      },
+    ])
+
+    render(<RemindersPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '编辑 秒级喝水提醒' }))
+    expect(screen.getByLabelText('模板时间')).toHaveValue('09:30:45')
+    fireEvent.change(screen.getByLabelText('模板时间'), { target: { value: '09:45:50' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }))
+
+    await waitFor(() => {
+      expect(mockedUpdateReminderTemplate).toHaveBeenCalledWith({
+        id: 'tpl_seconds',
+        title: '秒级喝水提醒',
+        message: '喝水时间到了',
+        category: 'health',
+        repeatRuleJson: '{"type":"daily","interval":1,"time":"09:45:50"}',
+        defaultGraceMinutes: 10,
+        note: '',
+        enabled: true,
+      })
     })
   })
 
@@ -542,7 +596,17 @@ describe('RemindersPage', () => {
     await screen.findByText('喝水提醒')
     fireEvent.click(screen.getByRole('button', { name: '新建提醒模板' }))
 
+    expect(screen.getByRole('dialog', { name: '新建提醒模板' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '保存模板' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '取消编辑' })).not.toBeInTheDocument()
+  })
+
+  it('renders edit flow inside a dialog instead of inline form', async () => {
+    render(<RemindersPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '编辑 喝水提醒' }))
+
+    expect(screen.getByRole('dialog', { name: '编辑提醒模板' })).toBeInTheDocument()
+    expect(screen.queryByText('添加到事件')).not.toBeInTheDocument()
   })
 })
