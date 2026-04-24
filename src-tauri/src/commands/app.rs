@@ -979,7 +979,7 @@ fn normalize_time_input(time: &str) -> Result<String, ReminderTemplateCommandErr
     NaiveTime::parse_from_str(time, "%H:%M:%S")
         .or_else(|_| NaiveTime::parse_from_str(time, "%H:%M"))
         .map(|parsed| parsed.format("%H:%M:%S").to_string())
-        .map_err(|_| command_error("提醒时间格式不正确"))
+        .map_err(|_| command_error("提醒时间格式必须为 HH:MM 或 HH:MM:SS"))
 }
 
 fn occurrence_priority(status: &str) -> u8 {

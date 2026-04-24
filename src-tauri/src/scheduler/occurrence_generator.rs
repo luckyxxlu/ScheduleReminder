@@ -7,7 +7,7 @@ use crate::models::reminder_template::ReminderTemplate;
 
 use super::repeat_rule::{parse_repeat_rule, RepeatRule};
 
-const SECONDS_PRECISION_COLON_COUNT: usize = 2;
+const TIME_WITH_SECONDS_COLON_COUNT: usize = 2;
 
 pub fn generate_occurrences(
     template: &ReminderTemplate,
@@ -23,7 +23,7 @@ pub fn generate_occurrences(
     let mut keys = HashSet::new();
 
     for (index, date) in dates.into_iter().enumerate() {
-        let scheduled_at = if time.matches(':').count() == SECONDS_PRECISION_COLON_COUNT {
+        let scheduled_at = if time.matches(':').count() == TIME_WITH_SECONDS_COLON_COUNT {
             format!("{date} {time}")
         } else {
             format!("{date} {time}:00")

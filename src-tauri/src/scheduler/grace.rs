@@ -105,7 +105,7 @@ fn active_grace_minutes(occurrence: &ReminderOccurrence) -> Result<u32, GraceErr
     let scheduled_at = parse_timestamp(&occurrence.scheduled_at)?;
     let fallback_minutes = (grace_deadline - scheduled_at).num_minutes();
 
-    if fallback_minutes < 0 {
+    if fallback_minutes <= 0 {
         return Err(GraceError::NotInGrace);
     }
 
@@ -279,5 +279,17 @@ mod tests {
             .expect_err("invalid persisted timestamps should be reported");
 
         assert_eq!(error, GraceError::InvalidTimestamp);
+    }
+
+    #[test]
+    fn rejects_legacy_grace_data_with_zero_remaining_minutes() {
+        let mut occurrence = grace_occurrence();
+        occurrence.snoozed_until = Some("2026-04-22 08:10:00".to_string());
+        occurrence.grace_deadline_at = "2026-04-22 08:00:00".to_string();
+
+        let error = snooze_occurrence(&mut occurrence, "2026-04-22 08:04:00", 5, "snoozed")
+            .expect_err("zero-minute fallback grace should not be treated as active");
+
+        assert_eq!(error, GraceError::NotInGrace);
     }
 }
