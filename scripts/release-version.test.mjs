@@ -43,7 +43,9 @@ describe('release version helpers', () => {
   it('updates all tracked version files', () => {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'schedule-reminder-version-'))
     const tauriDir = path.join(tempRoot, 'src-tauri')
+    const settingsDir = path.join(tempRoot, 'src', 'pages', 'settings')
     fs.mkdirSync(tauriDir, { recursive: true })
+    fs.mkdirSync(settingsDir, { recursive: true })
 
     fs.writeFileSync(
       path.join(tempRoot, 'package.json'),
@@ -72,6 +74,7 @@ describe('release version helpers', () => {
       path.join(tauriDir, 'Cargo.lock'),
       '[[package]]\nname = "schedule-reminder"\nversion = "0.1.0"\n',
     )
+    fs.writeFileSync(path.join(settingsDir, 'SettingsPage.tsx'), '时间助手 v0.1.0 · 基于 Tauri 构建\n')
 
     writeVersionFiles('3.2.1', tempRoot)
 
@@ -82,12 +85,15 @@ describe('release version helpers', () => {
     expect(JSON.parse(fs.readFileSync(path.join(tauriDir, 'tauri.conf.json'), 'utf8')).version).toBe('3.2.1')
     expect(fs.readFileSync(path.join(tauriDir, 'Cargo.toml'), 'utf8')).toContain('version = "3.2.1"')
     expect(fs.readFileSync(path.join(tauriDir, 'Cargo.lock'), 'utf8')).toContain('version = "3.2.1"')
+    expect(fs.readFileSync(path.join(settingsDir, 'SettingsPage.tsx'), 'utf8')).toContain('时间助手 v3.2.1')
   })
 
   it('supports the cli write path for version file updates', () => {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'schedule-reminder-cli-version-'))
     const tauriDir = path.join(tempRoot, 'src-tauri')
+    const settingsDir = path.join(tempRoot, 'src', 'pages', 'settings')
     fs.mkdirSync(tauriDir, { recursive: true })
+    fs.mkdirSync(settingsDir, { recursive: true })
 
     fs.writeFileSync(
       path.join(tempRoot, 'package.json'),
@@ -116,6 +122,7 @@ describe('release version helpers', () => {
       path.join(tauriDir, 'Cargo.lock'),
       '[[package]]\nname = "schedule-reminder"\nversion = "0.1.0"\n',
     )
+    fs.writeFileSync(path.join(settingsDir, 'SettingsPage.tsx'), '时间助手 v0.1.0 · 基于 Tauri 构建\n')
 
     const output = execFileSync(
       'node',
@@ -126,5 +133,6 @@ describe('release version helpers', () => {
 
     expect(JSON.parse(fs.readFileSync(path.join(tempRoot, 'package.json'), 'utf8')).version).toBe(result.version)
     expect(fs.readFileSync(path.join(tauriDir, 'Cargo.toml'), 'utf8')).toContain(`version = "${result.version}"`)
+    expect(fs.readFileSync(path.join(settingsDir, 'SettingsPage.tsx'), 'utf8')).toContain(`时间助手 v${result.version}`)
   })
 })

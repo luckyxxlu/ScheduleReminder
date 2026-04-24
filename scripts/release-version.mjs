@@ -136,6 +136,7 @@ export function writeVersionFiles(version, rootDir = REPO_ROOT) {
   const cargoTomlPath = path.join(rootDir, 'src-tauri', 'Cargo.toml')
   const cargoLockPath = path.join(rootDir, 'src-tauri', 'Cargo.lock')
   const tauriConfigPath = path.join(rootDir, 'src-tauri', 'tauri.conf.json')
+  const settingsPagePath = path.join(rootDir, 'src', 'pages', 'settings', 'SettingsPage.tsx')
 
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
   packageJson.version = version
@@ -166,6 +167,17 @@ export function writeVersionFiles(version, rootDir = REPO_ROOT) {
       /(\[\[package\]\]\s+name = "schedule-reminder"\s+version = ")([^"]+)"/m,
       `$1${version}"`,
       cargoLockPath,
+    ),
+  )
+
+  const settingsPage = fs.readFileSync(settingsPagePath, 'utf8')
+  fs.writeFileSync(
+    settingsPagePath,
+    replaceExactlyOnce(
+      settingsPage,
+      /(时间助手 v)(\d+\.\d+\.\d+)( · 基于 Tauri 构建)/,
+      `$1${version}$3`,
+      settingsPagePath,
     ),
   )
 }
