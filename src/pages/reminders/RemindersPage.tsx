@@ -308,7 +308,7 @@ export function RemindersPage() {
                 <input aria-label="提醒分类" value={category} onChange={(event) => setCategory(event.target.value)} />
               </label>
               <label className="calendar-input-group">
-                <span>时间</span>
+                <span>时间（支持秒）</span>
                 <input aria-label="模板时间" step="1" type="time" value={time} onChange={(event) => setTime(event.target.value)} />
               </label>
               <label className="calendar-input-group">

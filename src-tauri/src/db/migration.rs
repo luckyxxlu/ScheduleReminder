@@ -206,6 +206,7 @@ fn ensure_legacy_columns(connection: &Connection) -> Result<(), MigrationError> 
     Ok(())
 }
 
+/// Adds a missing column during startup migration and optionally backfills legacy rows.
 fn ensure_column(
     connection: &Connection,
     table: &str,
