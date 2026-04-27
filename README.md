@@ -53,3 +53,4 @@ cargo test --lib
   - Windows x86（`i686-pc-windows-msvc`）NSIS 安装包
   - 工作流会自动创建 GitHub Release，并上传可直接下载安装的 `.exe` 安装包
   - 正式分发请以 Release 页面中的安装包资产为准
+
